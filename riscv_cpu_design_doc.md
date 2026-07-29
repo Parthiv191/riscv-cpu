@@ -80,13 +80,13 @@ Legend: ✅ done · 🔧 in progress · ⬜ not started
 | `add`   | R | ⬜ | ✅ | 🔧 | ⬜ |
 | `sub`   | R | ⬜ | ✅ | 🔧 | ⬜ |
 | `and`   | R | ⬜ | ⬜ | 🔧 | ⬜ |
-| `or`    | R | ⬜ | ⬜ | ⬜ | ⬜ |
-| `xor`   | R | ⬜ | ⬜ | ⬜ | ⬜ |
-| `sll`   | R | ⬜ | ⬜ | ⬜ | ⬜ |
-| `srl`   | R | ⬜ | ⬜ | ⬜ | ⬜ |
-| `sra`   | R | ⬜ | ⬜ | ⬜ | ⬜ |
-| `slt`   | R | ⬜ | ⬜ | ⬜ | ⬜ |
-| `sltu`  | R | ⬜ | ⬜ | ⬜ | ⬜ |
+| `or`    | R | ⬜ | ⬜ | 🔧 | ⬜ |
+| `xor`   | R | ⬜ | ⬜ | 🔧 | ⬜ |
+| `sll`   | R | ⬜ | ⬜ | 🔧 | ⬜ |
+| `srl`   | R | ⬜ | ⬜ | 🔧 | ⬜ |
+| `sra`   | R | ⬜ | ⬜ | 🔧 | ⬜ |
+| `slt`   | R | ⬜ | ⬜ | 🔧 | ⬜ |
+| `sltu`  | R | ⬜ | ⬜ | 🔧 | ⬜ |
 | `addi`  | I | ⬜ | ✅ | ⬜ | ⬜ |
 | `andi`  | I | ⬜ | ⬜ | ⬜ | ⬜ |
 | `ori`   | I | ⬜ | ⬜ | ⬜ | ⬜ |
@@ -109,10 +109,10 @@ Legend: ✅ done · 🔧 in progress · ⬜ not started
 | `lui`   | Upper-imm | ⬜ | ✅ | ⬜ | ⬜ |
 | `auipc` | Upper-imm | ⬜ | ✅ | ⬜ | ⬜ |
 
-**Heads up (bug to reconcile):** `rtl/alu.v` currently maps `alu_op = 0001`
-to AND (`a & b`), but the Section 6 table says `0001 = SLL`. Need to pick
-one encoding and make the code and the doc agree before wiring the ALU into
-the control unit.
+`rtl/alu.v` is done and correctly matches the `{funct7[5], funct3}` scheme
+(see 5.1) for all 10 ops. Bumped the RTL column below to 🔧 across the board
+— the ALU logic itself is complete, but these aren't "instruction done"
+until `control.v` actually routes opcode/funct3/funct7 into `alu_op`.
 
 Byte/halfword loads and stores (`lb`, `lh`, `lbu`, `lhu`, `sb`, `sh`) and
 trap-related instructions (`fence`, `ecall`, `ebreak`) are **not** in this
@@ -214,6 +214,14 @@ module alu (
 | 1101 | SRA | a >>> b[4:0] (arithmetic) |
 | 0110 | OR | a \| b |
 | 0111 | AND | a & b |
+
+**Design decision: `alu_op` is literally `{funct7[5], funct3}` — not an
+arbitrary enum.** RISC-V's real R-type encoding already assigns funct3 =
+000/001/010/011/100/101/110/111 to add/sll/slt/sltu/xor/srl/or/and, and
+funct7[5] (`instr[30]`) is 1 only for sub/sra. So the table above is just
+`instr[30]` concatenated with `instr[14:12]` — no lookup table needed for
+these ops in the control unit, just wire the bits through (with one
+exception, see 5.6).
 
 Notes:
 - Use `$signed()` for SLT and SRA
@@ -320,6 +328,20 @@ module control (
 
 See Section 6 for the full signal table.
 
+**`alu_op` generation (per the 5.1 decision):** for R-type ops and the
+I-type shifts (`slli`/`srli`/`srai`), `alu_op = {instr[30], instr[14:12]}`
+directly — no per-instruction lookup needed, the RISC-V encoding already
+gives the right bits. The one exception: **`addi`** also has
+`funct3 = 000` (same slot as add/sub), but `instr[30]` for `addi` is just
+part of its immediate, not a real subtract flag — force that top bit to 0
+for `addi` specifically, or equivalently only pass `funct7[5]` through when
+`opcode` is R-type, or I-type with `funct3 == 101` (the shift slot).
+
+For everything else — `lw`, `sw`, `jalr`, `auipc` (always ADD), and
+branches (SUB for beq/bne, SLT for blt/bge, SLTU for bltu/bgeu, picked off
+branch `funct3`) — `alu_op` is set directly by the control unit's own logic,
+not derived from the instruction's funct3/funct7 bits.
+
 ### 5.7 Top Module (`rtl/riscv_top.v`)
 
 Instantiates all the blocks, holds the PC register and muxes.
@@ -341,7 +363,13 @@ writeback mux.
 
 ## 6. Control Signals
 
-**[TBD — 14 of 31 rows filled in, rest pending.]**
+**[TBD — 14 of 31 rows filled in, rest pending.]** Note: the `alu_op`
+column below is written as a mnemonic (ADD/SUB/SLT/...) for readability, but
+for R-type and I-type-shift rows it's not actually a per-row lookup in
+`control.v` — it's generated directly from `{funct7[5], funct3}` per 5.6.
+The mnemonics in this column only need real decode logic for the rows where
+`alu_op` isn't derived that way: `lw`/`sw`/`jalr`/`auipc` (always ADD) and
+the branches (SUB/SLT/SLTU based on branch `funct3`).
 
 | Instruction | `reg_write` | `mem_write` | `result_src` | `alu_src_a` | `alu_src_b` | `alu_op` | `imm_src` | `pc_src` |
 |---|---|---|---|---|---|---|---|---|
@@ -440,7 +468,7 @@ Running log of stuff I need to decide, revisit, or watch out for.
 - For JALR, spec says target = `(rs1 + imm) & ~1` (clear bit 0). Make sure the implementation actually does this.
 - For branches: is `alu_zero` + `alu_result[0]` (for SLT-based branches) enough, or do I need a dedicated branch comparator?
 - When it's time to pipeline: rewrite from scratch, or refactor the single-cycle version? Leaning rewrite — cleaner than bolting pipeline registers onto something that wasn't built for it.
-- `alu.v` / Section 6 opcode mismatch noted in 2.2 — fix before integration.
+- **Watch this one when writing `control.v`:** don't let `instr[30]` pass through as the alu_op top bit for `addi` — that bit is part of `addi`'s immediate, not a sub flag. Only R-type and I-type-shift (`slli`/`srli`/`srai`) should use `funct7[5]` for real. Getting this wrong means `addi` silently becomes `sub` for certain immediate values.
 
 ---
 
