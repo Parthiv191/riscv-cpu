@@ -1,0 +1,24 @@
+# Icarus / vvp artifacts
+*.vvp
+*.out
+
+# Waveforms
+*.vcd
+*.fst
+*.ghw
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Local AI-assistant config/notes (not for version control)
+CLAUDE.md
+.claude/
+
+# Project Resources
+Immediate Coding Diagram.png
+Ref Sheet.pdf
+riscv-unprivileged.pdf
+riscv_cpu_design_doc.md
