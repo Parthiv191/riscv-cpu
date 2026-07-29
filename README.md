@@ -1,8 +1,7 @@
 # riscv-cpu
 
 Building a 32-bit RISC-V CPU (RV32I) from scratch in Verilog because I wanted
-to actually understand what's going on under the hood instead of just taking
-a computer architecture class's word for it. Doing this in two phases: a
+to actually understand what's going on under the hood and get experiences with computer architecture, writing in verilog/system verilog and eventually implementing the cpu on an fpga. Doing this in two phases: a
 single-cycle version first to get something that actually works, then a
 5-stage pipelined version once that's solid.
 
@@ -16,8 +15,7 @@ actually build the thing with my own hands and understand every wire.
 ## Where things stand
 
 Still very early. Right now this is mostly scaffolding — module interfaces
-are stubbed out but most of the actual logic isn't written yet. The ALU is
-the first block I'm actually implementing.
+are stubbed out but most of the actual logic isn't written yet.
 
 - Top module: `riscv_top` (`rtl/riscv_top.v`)
 - Everything else lives in `rtl/`, one file per block (ALU, regfile, imm gen,
