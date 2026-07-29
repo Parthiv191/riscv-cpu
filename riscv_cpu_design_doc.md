@@ -455,7 +455,10 @@ riscv_cpu/
 │   ├── tb_dmem.v        (stub)
 │   └── tb_top.v         (stub)
 ├── programs/           (empty — .mem test programs go here later)
-└── docs/               (empty — datapath photo / split-out control table go here later)
+└── docs/
+    ├── Immediate Coding Diagram.png   (reference, gitignored)
+    ├── Ref Sheet.pdf                  (reference, gitignored)
+    └── riscv-unprivileged.pdf         (reference, gitignored)
 ```
 
 ---
