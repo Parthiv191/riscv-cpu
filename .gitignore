@@ -13,12 +13,7 @@
 # VS Code
 .vscode/
 
-# Local AI-assistant config/notes (not for version control)
-CLAUDE.md
-.claude/
-
-# Project Resources
+# Project Resources (reference material, not my own writing)
 Immediate Coding Diagram.png
 Ref Sheet.pdf
 riscv-unprivileged.pdf
-riscv_cpu_design_doc.md
