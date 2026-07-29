@@ -435,7 +435,6 @@ expected values.
 ```
 riscv_cpu/
 ├── README.md
-├── riscv_cpu_design_doc.md
 ├── Makefile
 ├── .gitignore
 ├── rtl/
@@ -456,6 +455,7 @@ riscv_cpu/
 │   └── tb_top.v         (stub)
 ├── programs/           (empty — .mem test programs go here later)
 └── docs/
+    ├── riscv_cpu_design_doc.md        (this document)
     ├── Immediate Coding Diagram.png   (reference, gitignored)
     ├── Ref Sheet.pdf                  (reference, gitignored)
     └── riscv-unprivileged.pdf         (reference, gitignored)
