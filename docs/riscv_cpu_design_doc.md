@@ -2,7 +2,7 @@
 
 **Author:** Parthiv Patel
 **Started:** 6/14/26
-**Status:** DRAFT — scaffolding is up, ALU is the first thing actually getting coded
+**Status:** DRAFT — scaffolding is up, control block next
 
 ---
 
@@ -40,11 +40,7 @@ of the ISA than the textbook subset does.
 
 ### 1.3 Constraints
 
-- **Time:** originally budgeted ~5 weeks for single-cycle. Already past that
-  and still on scaffolding, so that estimate was optimistic — not stressing
-  about it, just noting reality.
-- **Tools:** Icarus Verilog for sim, Surfer for waveforms, Vivado (via SSH to
-  the Ubuntu box) for Basys 3 stuff later.
+- **Tools:** Icarus Verilog for sim, Surfer for waveforms, Vivado for Basys 3 stuff later.
 - **Language:** Verilog-2005. Might pull in SystemVerilog features (`logic`,
   `always_ff`) once v1 actually works.
 
@@ -52,7 +48,7 @@ of the ISA than the textbook subset does.
 
 ## 2. ISA Subset
 
-Supporting enough of RV32I to run real, non-trivial programs.
+Supporting enough of RV32I to run basic programs. Will cover entire subset and maybe add M(Multiplication), C(Compressed Instruction), and V(Vector Operations) extentions in the future. 
 
 ### 2.1 Instructions Supported (v1) — 31 total
 
@@ -68,67 +64,60 @@ Supporting enough of RV32I to run real, non-trivial programs.
 
 ### 2.2 Instruction Progress Tracker
 
-The actual thing I'll keep updated as I work. Four checkpoints per
-instruction: sketched on the hand-drawn datapath, control signals worked out
-(has a row in the Section 6 table), coded in `rtl/*.v`, and has a passing
-testbench vector.
+Four checkpoints per instruction: sketched on the hand-drawn datapath,
+decoded in `control.v`, coded end-to-end and wired into `riscv_top.v`, and
+has a passing testbench vector.
 
-Legend: ✅ done · 🔧 in progress · ⬜ not started
+Legend: ✅ done · ⬜ not done
 
 | Instruction | Type | Datapath | Control | RTL | Testbench |
 |---|---|---|---|---|---|
-| `add`   | R | ⬜ | ✅ | 🔧 | ⬜ |
-| `sub`   | R | ⬜ | ✅ | 🔧 | ⬜ |
-| `and`   | R | ⬜ | ⬜ | 🔧 | ⬜ |
-| `or`    | R | ⬜ | ⬜ | 🔧 | ⬜ |
-| `xor`   | R | ⬜ | ⬜ | 🔧 | ⬜ |
-| `sll`   | R | ⬜ | ⬜ | 🔧 | ⬜ |
-| `srl`   | R | ⬜ | ⬜ | 🔧 | ⬜ |
-| `sra`   | R | ⬜ | ⬜ | 🔧 | ⬜ |
-| `slt`   | R | ⬜ | ⬜ | 🔧 | ⬜ |
-| `sltu`  | R | ⬜ | ⬜ | 🔧 | ⬜ |
-| `addi`  | I | ⬜ | ✅ | ⬜ | ⬜ |
-| `andi`  | I | ⬜ | ⬜ | ⬜ | ⬜ |
-| `ori`   | I | ⬜ | ⬜ | ⬜ | ⬜ |
-| `xori`  | I | ⬜ | ⬜ | ⬜ | ⬜ |
-| `slli`  | I | ⬜ | ⬜ | ⬜ | ⬜ |
-| `srli`  | I | ⬜ | ⬜ | ⬜ | ⬜ |
-| `srai`  | I | ⬜ | ⬜ | ⬜ | ⬜ |
-| `slti`  | I | ⬜ | ⬜ | ⬜ | ⬜ |
-| `sltiu` | I | ⬜ | ⬜ | ⬜ | ⬜ |
-| `lw`    | Load | ⬜ | ✅ | ⬜ | ⬜ |
-| `sw`    | Store | ⬜ | ✅ | ⬜ | ⬜ |
-| `beq`   | Branch | ⬜ | ✅ | ⬜ | ⬜ |
-| `bne`   | Branch | ⬜ | ✅ | ⬜ | ⬜ |
-| `blt`   | Branch | ⬜ | ✅ | ⬜ | ⬜ |
-| `bge`   | Branch | ⬜ | ✅ | ⬜ | ⬜ |
-| `bltu`  | Branch | ⬜ | ✅ | ⬜ | ⬜ |
-| `bgeu`  | Branch | ⬜ | ✅ | ⬜ | ⬜ |
-| `jal`   | Jump | ⬜ | ✅ | ⬜ | ⬜ |
-| `jalr`  | Jump | ⬜ | ✅ | ⬜ | ⬜ |
-| `lui`   | Upper-imm | ⬜ | ✅ | ⬜ | ⬜ |
-| `auipc` | Upper-imm | ⬜ | ✅ | ⬜ | ⬜ |
-
-`rtl/alu.v` is done and correctly matches the `{funct7[5], funct3}` scheme
-(see 5.1) for all 10 ops. Bumped the RTL column below to 🔧 across the board
-— the ALU logic itself is complete, but these aren't "instruction done"
-until `control.v` actually routes opcode/funct3/funct7 into `alu_op`.
+| `add`   | R | ✅ | ✅ | ⬜ | ⬜ |
+| `sub`   | R | ✅ | ✅ | ⬜ | ⬜ |
+| `and`   | R | ✅ | ✅ | ⬜ | ⬜ |
+| `or`    | R | ✅ | ✅ | ⬜ | ⬜ |
+| `xor`   | R | ✅ | ✅ | ⬜ | ⬜ |
+| `sll`   | R | ✅ | ✅ | ⬜ | ⬜ |
+| `srl`   | R | ✅ | ✅ | ⬜ | ⬜ |
+| `sra`   | R | ✅ | ✅ | ⬜ | ⬜ |
+| `slt`   | R | ✅ | ✅ | ⬜ | ⬜ |
+| `sltu`  | R | ✅ | ✅ | ⬜ | ⬜ |
+| `addi`  | I | ✅ | ✅ | ⬜ | ⬜ |
+| `andi`  | I | ✅ | ✅ | ⬜ | ⬜ |
+| `ori`   | I | ✅ | ✅ | ⬜ | ⬜ |
+| `xori`  | I | ✅ | ✅ | ⬜ | ⬜ |
+| `slli`  | I | ✅ | ✅ | ⬜ | ⬜ |
+| `srli`  | I | ✅ | ✅ | ⬜ | ⬜ |
+| `srai`  | I | ✅ | ✅ | ⬜ | ⬜ |
+| `slti`  | I | ✅ | ✅ | ⬜ | ⬜ |
+| `sltiu` | I | ✅ | ✅ | ⬜ | ⬜ |
+| `lw`    | Load | ✅ | ⬜ | ⬜ | ⬜ |
+| `sw`    | Store | ✅ | ⬜ | ⬜ | ⬜ |
+| `beq`   | Branch | ✅ | ⬜ | ⬜ | ⬜ |
+| `bne`   | Branch | ✅ | ⬜ | ⬜ | ⬜ |
+| `blt`   | Branch | ⬜ | ⬜ | ⬜ | ⬜ |
+| `bge`   | Branch | ⬜ | ⬜ | ⬜ | ⬜ |
+| `bltu`  | Branch | ⬜ | ⬜ | ⬜ | ⬜ |
+| `bgeu`  | Branch | ⬜ | ⬜ | ⬜ | ⬜ |
+| `jal`   | Jump | ✅ | ⬜ | ⬜ | ⬜ |
+| `jalr`  | Jump | ⬜ | ⬜ | ⬜ | ⬜ |
+| `lui`   | Upper-imm | ⬜ | ⬜ | ⬜ | ⬜ |
+| `auipc` | Upper-imm | ⬜ | ⬜ | ⬜ | ⬜ |
 
 Byte/halfword loads and stores (`lb`, `lh`, `lbu`, `lhu`, `sb`, `sh`) and
-trap-related instructions (`fence`, `ecall`, `ebreak`) are **not** in this
-tracker — they're deferred, see Section 12.
+trap-related instructions (`fence`, `ecall`, `ebreak`) are deferred, see Section 12.
 
 ### 2.3 Register Conventions
 
 - 32 general-purpose registers, `x0`–`x31`, 32 bits each
 - `x0` hardwired to zero: reads always return 0, writes silently discarded
-- Not enforcing ABI/calling-convention stuff in hardware — that's a compiler problem, not mine
+- Not enforcing ABI/calling-convention stuff in hardware, only that x0 = 0
 
 ---
 
 ## 3. Microarchitecture Overview
 
-- One instruction per clock cycle, start to finish
+- One instruction per clock cycle
 - Combinational IMEM, regfile read ports, ALU, DMEM read
 - Synchronous writes to regfile, DMEM, and PC (all on `posedge clk`)
 - Reference datapath: Harris & Harris Figure 7.11, adapted for the extended instruction set
@@ -156,13 +145,12 @@ tracker — they're deferred, see Section 12.
 
 ## 4. Datapath
 
-**[TBD — haven't drawn this yet.]** Starting point is Harris & Harris Figure
-7.11. Known modifications from the textbook subset:
+Loacted at **docs/datapath.pdf** Need to update:
 
-- Extend `ImmSrc` to handle all 5 immediate types (I, S, B, U, J), not just I/S/B
 - Add the AUIPC path (immediate + PC → result)
-- Add JAL/JALR support (write PC+4 to rd, jump)
-- Handle all 6 branch conditions, not just `beq`
+- Add LUI
+- Add JALR support (write PC+4 to rd, jump)
+- Handle all 6 branch conditions, not just `beq` and `bne`
 
 ### 4.1 Key Wires and Widths
 
@@ -208,20 +196,15 @@ module alu (
 | 1000 | SUB | a - b |
 | 0001 | SLL | a << b[4:0] |
 | 0010 | SLT | signed(a) < signed(b) ? 1 : 0 |
-| 0011 | SLTU | unsigned(a) < unsigned(b) ? 1 : 0 |
+| 0011 | SLTU | a < b ? 1 : 0 |
 | 0100 | XOR | a ^ b |
 | 0101 | SRL | a >> b[4:0] (logical) |
 | 1101 | SRA | a >>> b[4:0] (arithmetic) |
 | 0110 | OR | a \| b |
 | 0111 | AND | a & b |
 
-**Design decision: `alu_op` is literally `{funct7[5], funct3}` — not an
-arbitrary enum.** RISC-V's real R-type encoding already assigns funct3 =
-000/001/010/011/100/101/110/111 to add/sll/slt/sltu/xor/srl/or/and, and
-funct7[5] (`instr[30]`) is 1 only for sub/sra. So the table above is just
-`instr[30]` concatenated with `instr[14:12]` — no lookup table needed for
-these ops in the control unit, just wire the bits through (with one
-exception, see 5.6).
+**Design decision: `alu_op` is derived from `{funct7[5], funct3}`** 
+Instead of having a lookup table for each instruction, by doing this concatonation this gets simplified.
 
 Notes:
 - Use `$signed()` for SLT and SRA
@@ -300,9 +283,6 @@ module imm_gen (
 Branch/jump immediates have an implicit LSB of 0 (instructions are 4-byte
 aligned), which is why B/J have `1'b0` tacked on at position `[0]`.
 
-**This is the module most likely to have bugs.** Write a testbench that hits
-every format with several vectors before wiring it up. Check bit-by-bit
-against the ref sheet.
 
 ### 5.6 Control Unit (`rtl/control.v`)
 
@@ -316,8 +296,7 @@ module control (
     input        alu_zero,
     output       reg_write,
     output       mem_write,
-    output       mem_to_reg,     // WB mux: 0=alu, 1=mem, 2=pc+4
-    output [1:0] result_src,
+    output [1:0] result_src,     // WB mux select: 00=ALU, 01=MEM, 10=PC+4
     output       alu_src_a,      // 0=rs1, 1=pc (AUIPC)
     output       alu_src_b,      // 0=rs2, 1=imm
     output [3:0] alu_op,
@@ -327,20 +306,6 @@ module control (
 ```
 
 See Section 6 for the full signal table.
-
-**`alu_op` generation (per the 5.1 decision):** for R-type ops and the
-I-type shifts (`slli`/`srli`/`srai`), `alu_op = {instr[30], instr[14:12]}`
-directly — no per-instruction lookup needed, the RISC-V encoding already
-gives the right bits. The one exception: **`addi`** also has
-`funct3 = 000` (same slot as add/sub), but `instr[30]` for `addi` is just
-part of its immediate, not a real subtract flag — force that top bit to 0
-for `addi` specifically, or equivalently only pass `funct7[5]` through when
-`opcode` is R-type, or I-type with `funct3 == 101` (the shift slot).
-
-For everything else — `lw`, `sw`, `jalr`, `auipc` (always ADD), and
-branches (SUB for beq/bne, SLT for blt/bge, SLTU for bltu/bgeu, picked off
-branch `funct3`) — `alu_op` is set directly by the control unit's own logic,
-not derived from the instruction's funct3/funct7 bits.
 
 ### 5.7 Top Module (`rtl/riscv_top.v`)
 
@@ -363,13 +328,9 @@ writeback mux.
 
 ## 6. Control Signals
 
-**[TBD — 14 of 31 rows filled in, rest pending.]** Note: the `alu_op`
-column below is written as a mnemonic (ADD/SUB/SLT/...) for readability, but
-for R-type and I-type-shift rows it's not actually a per-row lookup in
-`control.v` — it's generated directly from `{funct7[5], funct3}` per 5.6.
-The mnemonics in this column only need real decode logic for the rows where
-`alu_op` isn't derived that way: `lw`/`sw`/`jalr`/`auipc` (always ADD) and
-the branches (SUB/SLT/SLTU based on branch `funct3`).
+`result_src` encoding: `00 = ALU`, `01 = MEM`, `10 = PC+4` (the "–" rows
+below don't write a register, so `result_src` is a don't-care there — the
+control unit's default assignment of `00` is fine, it just won't matter).
 
 | Instruction | `reg_write` | `mem_write` | `result_src` | `alu_src_a` | `alu_src_b` | `alu_op` | `imm_src` | `pc_src` |
 |---|---|---|---|---|---|---|---|---|
@@ -388,9 +349,16 @@ the branches (SUB/SLT/SLTU based on branch `funct3`).
 | `jalr`  | 1 | 0 | PC+4 | rs1 | imm | ADD | I | jalr target |
 | `lui`   | 1 | 0 | ALU  | 0 | imm | ADD (or passthrough) | U | pc+4 |
 | `auipc` | 1 | 0 | ALU  | pc | imm | ADD | U | pc+4 |
+| `andi`  | 1 | 0 | ALU  | rs1 | imm | AND  | I | pc+4 |
+| `ori`   | 1 | 0 | ALU  | rs1 | imm | OR   | I | pc+4 |
+| `xori`  | 1 | 0 | ALU  | rs1 | imm | XOR  | I | pc+4 |
+| `slli`  | 1 | 0 | ALU  | rs1 | imm | SLL  | I | pc+4 |
+| `srai`  | 1 | 0 | ALU  | rs1 | imm | SRA  | I | pc+4 |
+| `slti`  | 1 | 0 | ALU  | rs1 | imm | SLT  | I | pc+4 |
+| `sltiu` | 1 | 0 | ALU  | rs1 | imm | SLTU | I | pc+4 |
+| `srli`  | 1 | 0 | ALU  | rs1 | imm | SRL  | I | pc+4 |
 
-Still need: `and`, `or`, `xor`, `sll`, `srl`, `sra`, `slt`, `sltu`, `andi`,
-`ori`, `xori`, `slli`, `srli`, `srai`, `slti`, `sltiu`.
+Still need: `and`, `or`, `xor`, `sll`, `srl`, `sra`, `slt`, `sltu`
 
 ---
 
@@ -458,7 +426,9 @@ riscv_cpu/
     ├── riscv_cpu_design_doc.md        (this document)
     ├── Immediate Coding Diagram.png   (reference, gitignored)
     ├── Ref Sheet.pdf                  (reference, gitignored)
-    └── riscv-unprivileged.pdf         (reference, gitignored)
+    ├── riscv-unprivileged.pdf         (reference, gitignored)
+    └── datapath.pdf                   (reference)
+    
 ```
 
 ---
@@ -475,7 +445,7 @@ Running log of stuff I need to decide, revisit, or watch out for.
 
 ---
 
-## 10. Timeline (rough, and already slipping)
+## 10. Timeline
 
 | Week | Milestone |
 |---|---|
@@ -540,3 +510,7 @@ Stages: **IF → ID → EX → MEM → WB**
 - **7/28/26** — Reworked doc to focus on single-cycle only, added the
   instruction progress tracker, moved pipeline notes to Section 12, started
   tracking this file in git.
+- **7/30/26** — Dropped `mem_to_reg` from the control unit interface
+  (redundant with `result_src`), pinned down `result_src`'s bit encoding
+  (00=ALU/01=MEM/10=PC+4), and widened the `alu_op`-passthrough exception in
+  5.6 — it's not just `addi`, it's every non-shift OP-IMM instruction.
