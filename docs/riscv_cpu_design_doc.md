@@ -2,7 +2,7 @@
 
 **Author:** Parthiv Patel
 **Started:** 6/14/26
-**Status:** DRAFT — scaffolding is up, control block next
+**Status:** DRAFT — `alu.v` and `control.v` complete, `riscv_top.v` next
 
 ---
 
@@ -91,18 +91,18 @@ Legend: ✅ done · ⬜ not done
 | `srai`  | I | ✅ | ✅ | ⬜ | ⬜ |
 | `slti`  | I | ✅ | ✅ | ⬜ | ⬜ |
 | `sltiu` | I | ✅ | ✅ | ⬜ | ⬜ |
-| `lw`    | Load | ✅ | ⬜ | ⬜ | ⬜ |
-| `sw`    | Store | ✅ | ⬜ | ⬜ | ⬜ |
-| `beq`   | Branch | ✅ | ⬜ | ⬜ | ⬜ |
-| `bne`   | Branch | ✅ | ⬜ | ⬜ | ⬜ |
-| `blt`   | Branch | ⬜ | ⬜ | ⬜ | ⬜ |
-| `bge`   | Branch | ⬜ | ⬜ | ⬜ | ⬜ |
-| `bltu`  | Branch | ⬜ | ⬜ | ⬜ | ⬜ |
-| `bgeu`  | Branch | ⬜ | ⬜ | ⬜ | ⬜ |
-| `jal`   | Jump | ✅ | ⬜ | ⬜ | ⬜ |
-| `jalr`  | Jump | ⬜ | ⬜ | ⬜ | ⬜ |
-| `lui`   | Upper-imm | ⬜ | ⬜ | ⬜ | ⬜ |
-| `auipc` | Upper-imm | ⬜ | ⬜ | ⬜ | ⬜ |
+| `lw`    | Load | ✅ | ✅ | ⬜ | ⬜ |
+| `sw`    | Store | ✅ | ✅ | ⬜ | ⬜ |
+| `beq`   | Branch | ✅ | ✅ | ⬜ | ⬜ |
+| `bne`   | Branch | ✅ | ✅ | ⬜ | ⬜ |
+| `blt`   | Branch | ⬜ | ✅ | ⬜ | ⬜ |
+| `bge`   | Branch | ⬜ | ✅ | ⬜ | ⬜ |
+| `bltu`  | Branch | ⬜ | ✅ | ⬜ | ⬜ |
+| `bgeu`  | Branch | ⬜ | ✅ | ⬜ | ⬜ |
+| `jal`   | Jump | ✅ | ✅ | ⬜ | ⬜ |
+| `jalr`  | Jump | ⬜ | ✅ | ⬜ | ⬜ |
+| `lui`   | Upper-imm | ⬜ | ✅ | ⬜ | ⬜ |
+| `auipc` | Upper-imm | ⬜ | ✅ | ⬜ | ⬜ |
 
 Byte/halfword loads and stores (`lb`, `lh`, `lbu`, `lhu`, `sb`, `sh`) and
 trap-related instructions (`fence`, `ecall`, `ebreak`) are deferred, see Section 12.
@@ -202,6 +202,7 @@ module alu (
 | 1101 | SRA | a >>> b[4:0] (arithmetic) |
 | 0110 | OR | a \| b |
 | 0111 | AND | a & b |
+| 1010 | PASS | b (passthrough, ignores `a` — used for `lui`: `rd = imm`) |
 
 **Design decision: `alu_op` is derived from `{funct7[5], funct3}`** 
 Instead of having a lookup table for each instruction, by doing this concatonation this gets simplified.
@@ -336,6 +337,14 @@ control unit's default assignment of `00` is fine, it just won't matter).
 |---|---|---|---|---|---|---|---|---|
 | `add`   | 1 | 0 | ALU  | rs1 | rs2 | ADD  | – | pc+4 |
 | `sub`   | 1 | 0 | ALU  | rs1 | rs2 | SUB  | – | pc+4 |
+| `and`   | 1 | 0 | ALU  | rs1 | rs2 | AND  | – | pc+4 |
+| `or`    | 1 | 0 | ALU  | rs1 | rs2 | OR   | – | pc+4 |
+| `xor`   | 1 | 0 | ALU  | rs1 | rs2 | XOR  | – | pc+4 |
+| `sll`   | 1 | 0 | ALU  | rs1 | rs2 | SLL  | – | pc+4 |
+| `srl`   | 1 | 0 | ALU  | rs1 | rs2 | SRL  | – | pc+4 |
+| `sra`   | 1 | 0 | ALU  | rs1 | rs2 | SRA  | – | pc+4 |
+| `slt`   | 1 | 0 | ALU  | rs1 | rs2 | SLT  | – | pc+4 |
+| `sltu`  | 1 | 0 | ALU  | rs1 | rs2 | SLTU | – | pc+4 |
 | `addi`  | 1 | 0 | ALU  | rs1 | imm | ADD  | I | pc+4 |
 | `lw`    | 1 | 0 | MEM  | rs1 | imm | ADD  | I | pc+4 |
 | `sw`    | 0 | 1 | –    | rs1 | imm | ADD  | S | pc+4 |
@@ -347,7 +356,7 @@ control unit's default assignment of `00` is fine, it just won't matter).
 | `bgeu`  | 0 | 0 | –    | rs1 | rs2 | SLTU | B | branch if !result |
 | `jal`   | 1 | 0 | PC+4 | – | – | – | J | jal target |
 | `jalr`  | 1 | 0 | PC+4 | rs1 | imm | ADD | I | jalr target |
-| `lui`   | 1 | 0 | ALU  | 0 | imm | ADD (or passthrough) | U | pc+4 |
+| `lui`   | 1 | 0 | ALU  | –   | imm | PASS | U | pc+4 |
 | `auipc` | 1 | 0 | ALU  | pc | imm | ADD | U | pc+4 |
 | `andi`  | 1 | 0 | ALU  | rs1 | imm | AND  | I | pc+4 |
 | `ori`   | 1 | 0 | ALU  | rs1 | imm | OR   | I | pc+4 |
@@ -358,7 +367,7 @@ control unit's default assignment of `00` is fine, it just won't matter).
 | `sltiu` | 1 | 0 | ALU  | rs1 | imm | SLTU | I | pc+4 |
 | `srli`  | 1 | 0 | ALU  | rs1 | imm | SRL  | I | pc+4 |
 
-Still need: `and`, `or`, `xor`, `sll`, `srl`, `sra`, `slt`, `sltu`
+All 31 rows filled in.
 
 ---
 
@@ -514,3 +523,7 @@ Stages: **IF → ID → EX → MEM → WB**
   (redundant with `result_src`), pinned down `result_src`'s bit encoding
   (00=ALU/01=MEM/10=PC+4), and widened the `alu_op`-passthrough exception in
   5.6 — it's not just `addi`, it's every non-shift OP-IMM instruction.
+- **8/1/26** — `control.v` complete for all 9 opcodes / 31 instructions.
+  Filled in Section 6's remaining 8 R-type rows, added the `1010`/PASS ALU
+  op (used for `lui`) to the 5.1 table, and synced the instruction tracker's
+  Control column to match.

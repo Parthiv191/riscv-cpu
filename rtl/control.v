@@ -11,25 +11,31 @@ module control (
     output  reg  alu_src_a, // ALU port A mux: 0=rs1, 1=pc  (for AUIPC)
     output  reg  alu_src_b, // ALU port B mux: 0=rs2, 1=imm
     output  reg  [3:0] alu_op,
-    output  reg  [2:0] imm_src, // 0=I-type, 1=S-type, 2=B-type, 3=U-type, 4=J-type
+    output  reg  [2:0] imm_src, // 000=I-type, 001=S-type, 010=B-type, 011=U-type, 100=J-type
     output  reg  [1:0] pc_src // PC mux: 0=pc+4, 1=branch, 2=jal, 3=jalr
 );
 
+    reg branch_taken; // internal helper, not a port
+
     always @(*) begin
-        reg_write  = 1'b0;
-        mem_write  = 1'b0;
-        result_src = 2'b00; // Default ALU
-        alu_src_a  = 1'b0;
-        alu_src_b  = 1'b0;
-        alu_op     = 4'b0000;
-        imm_src    = 3'b000;
-        pc_src     = 2'b00;
+        reg_write = 1'b0;
+        mem_write = 1'b0;
+        result_src= 2'b00; // Default ALU
+        alu_src_a = 1'b0;
+        alu_src_b = 1'b0;
+        alu_op = 4'b0000;
+        imm_src = 3'b000;
+        pc_src = 2'b00;
+        branch_taken = 1'b0;
 
         case (opcode)
         // Load-Type
         // NOTE: This is just lw for rn, probably will include halfbyte stuff, but haven't thought this through
             7'b0000011: begin
                 reg_write = 1'b1;
+                result_src = 2'b01;
+                alu_src_a = 1'b0;
+                alu_src_b = 1'b1;
             end
 
         // R-Type
@@ -49,8 +55,26 @@ module control (
                 imm_src = 3'b001;
             end
 
-        // Branch-Type   
+        // Branch-Type
             7'b1100011: begin
+                imm_src = 3'b010; // B-type
+
+                // funct3[2:1]:
+                // 00 = SUB (beq/bne), 10 = SLT (blt/bge), 11 = SLTU (bltu/bgeu)
+                case (funct3[2:1])
+                    2'b00: alu_op = 4'b1000; // SUB
+                    2'b10: alu_op = 4'b0010; // SLT
+                    2'b11: alu_op = 4'b0011; // SLTU
+                    default: alu_op = 4'b1000;
+                endcase
+
+                branch_taken = funct3[2] ? ~alu_zero : alu_zero;
+
+                if (funct3[0])
+                    branch_taken = ~branch_taken;
+
+                if (branch_taken)
+                    pc_src = 2'b01;
             end
 
         // AUIPC, add upper immediate to PC
@@ -64,14 +88,20 @@ module control (
         // LUI, load upper immediate
             7'b0110111: begin
                 reg_write = 1'b1;
-                alu_src_a = 0;
+                mem_write = 1'b0;
+                result_src = 2'b00;
                 alu_src_b = 1'b1;
+                alu_op = 4'b1010;
                 imm_src = 3'b011;
             end
 
         // JAL, jump and link
             7'b1101111: begin
-
+                reg_write = 1'b1;
+                mem_write = 1'b0;
+                result_src = 2'b10;
+                imm_src = 3'b100;
+                pc_src = 2'b10;
             end 
 
         // Immediate-op type
@@ -89,11 +119,14 @@ module control (
 
         // JALR, jump and link register
             7'b1100111: begin
-                
-            end
-
-            default: begin
-
+                reg_write = 1'b1;
+                mem_write = 1'b0;
+                result_src = 2'b10;
+                alu_src_a = 1'b0;
+                alu_src_b = 1'b1;
+                alu_op = 4'b0000;
+                imm_src = 3'b000;
+                pc_src = 2'b11;
             end
         endcase
     end
