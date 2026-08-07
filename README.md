@@ -1,7 +1,6 @@
 # riscv-cpu
 
-Building a 32-bit RISC-V CPU (RV32I) from scratch in Verilog because I wanted
-to actually understand what's going on under the hood and get experiences with computer architecture, writing in verilog/system verilog and eventually implementing the cpu on an fpga. Doing this in two phases: a
+Building a 32-bit RISC-V CPU (RV32I) from scratch in Verilog to learn and get experiences with computer architecture and RISC-V, writing in verilog/system verilog and eventually implementing the cpu on an fpga. Doing this in two phases: a
 single-cycle version first to get something that actually works, then a
 5-stage pipelined version once that's solid.
 
@@ -10,13 +9,12 @@ approach) is basically following Harris & Harris' *Digital Design and Computer
 Architecture* — I'm using their RISC-V single-cycle datapath as the starting
 point and extending it to cover more instructions than the textbook subset.
 Not trying to reinvent the wheel on the architecture side, just trying to
-actually build the thing with my own hands and understand every wire.
+actually build the thing with my own hands and understand how it works.
 
 ## Where things stand
 
-Still very early. Right now this is mostly scaffolding — module interfaces
-are stubbed out but most of the actual logic isn't written yet.
-
+Still very early in the project. Most of the scaffolding is done and design decisions have been made (see design doc). I'm in the process of writing the rtl/testbenches and actually verifying it works
+ 
 - Top module: `riscv_top` (`rtl/riscv_top.v`)
 - Everything else lives in `rtl/`, one file per block (ALU, regfile, imm gen,
   control unit, imem, dmem)
@@ -46,5 +44,4 @@ make wave TB=alu   # pop open the waveform in surfer
 - Keep it Verilog-2005 for now, can revisit SystemVerilog features later
 - No interrupts, no CSRs, no compressed instructions, no M extension — v1 is
   just enough RV32I to run real programs
-- Once single-cycle is solid, rewrite (not refactor) for the pipelined
-  version — cleaner than trying to bolt pipeline registers onto this
+- Once single-cycle is solid, rewrite in systemVerilog and grow instruction set to include M type and maybe more, only then move on the phase 2 (pipelined)
