@@ -64,48 +64,63 @@ Supporting enough of RV32I to run basic programs. Will cover entire subset and m
 
 ### 2.2 Instruction Progress Tracker
 
-Four checkpoints per instruction: sketched on the hand-drawn datapath,
-decoded in `control.v`, coded end-to-end and wired into `riscv_top.v`, and
-has a passing testbench vector.
+Three checkpoints per instruction: sketched on the hand-drawn datapath,
+decoded in `control.v`, and has a passing testbench vector of its own.
+
+Per file RTL completion is tracked below.
 
 Legend: ✅ done · ⬜ not done
 
-| Instruction | Type | Datapath | Control | RTL | Testbench |
-|---|---|---|---|---|---|
-| `add`   | R | ✅ | ✅ | ⬜ | ⬜ |
-| `sub`   | R | ✅ | ✅ | ⬜ | ⬜ |
-| `and`   | R | ✅ | ✅ | ⬜ | ⬜ |
-| `or`    | R | ✅ | ✅ | ⬜ | ⬜ |
-| `xor`   | R | ✅ | ✅ | ⬜ | ⬜ |
-| `sll`   | R | ✅ | ✅ | ⬜ | ⬜ |
-| `srl`   | R | ✅ | ✅ | ⬜ | ⬜ |
-| `sra`   | R | ✅ | ✅ | ⬜ | ⬜ |
-| `slt`   | R | ✅ | ✅ | ⬜ | ⬜ |
-| `sltu`  | R | ✅ | ✅ | ⬜ | ⬜ |
-| `addi`  | I | ✅ | ✅ | ⬜ | ⬜ |
-| `andi`  | I | ✅ | ✅ | ⬜ | ⬜ |
-| `ori`   | I | ✅ | ✅ | ⬜ | ⬜ |
-| `xori`  | I | ✅ | ✅ | ⬜ | ⬜ |
-| `slli`  | I | ✅ | ✅ | ⬜ | ⬜ |
-| `srli`  | I | ✅ | ✅ | ⬜ | ⬜ |
-| `srai`  | I | ✅ | ✅ | ⬜ | ⬜ |
-| `slti`  | I | ✅ | ✅ | ⬜ | ⬜ |
-| `sltiu` | I | ✅ | ✅ | ⬜ | ⬜ |
-| `lw`    | Load | ✅ | ✅ | ⬜ | ⬜ |
-| `sw`    | Store | ✅ | ✅ | ⬜ | ⬜ |
-| `beq`   | Branch | ✅ | ✅ | ⬜ | ⬜ |
-| `bne`   | Branch | ✅ | ✅ | ⬜ | ⬜ |
-| `blt`   | Branch | ⬜ | ✅ | ⬜ | ⬜ |
-| `bge`   | Branch | ⬜ | ✅ | ⬜ | ⬜ |
-| `bltu`  | Branch | ⬜ | ✅ | ⬜ | ⬜ |
-| `bgeu`  | Branch | ⬜ | ✅ | ⬜ | ⬜ |
-| `jal`   | Jump | ✅ | ✅ | ⬜ | ⬜ |
-| `jalr`  | Jump | ⬜ | ✅ | ⬜ | ⬜ |
-| `lui`   | Upper-imm | ⬜ | ✅ | ⬜ | ⬜ |
-| `auipc` | Upper-imm | ⬜ | ✅ | ⬜ | ⬜ |
+| Instruction | Type | Datapath | Control | Testbench |
+|---|---|---|---|---|
+| `add`   | R | ✅ | ✅ | ⬜ |
+| `sub`   | R | ✅ | ✅ | ⬜ |
+| `and`   | R | ✅ | ✅ | ⬜ |
+| `or`    | R | ✅ | ✅ | ⬜ |
+| `xor`   | R | ✅ | ✅ | ⬜ |
+| `sll`   | R | ✅ | ✅ | ⬜ |
+| `srl`   | R | ✅ | ✅ | ⬜ |
+| `sra`   | R | ✅ | ✅ | ⬜ |
+| `slt`   | R | ✅ | ✅ | ⬜ |
+| `sltu`  | R | ✅ | ✅ | ⬜ |
+| `addi`  | I | ✅ | ✅ | ⬜ |
+| `andi`  | I | ✅ | ✅ | ⬜ |
+| `ori`   | I | ✅ | ✅ | ⬜ |
+| `xori`  | I | ✅ | ✅ | ⬜ |
+| `slli`  | I | ✅ | ✅ | ⬜ |
+| `srli`  | I | ✅ | ✅ | ⬜ |
+| `srai`  | I | ✅ | ✅ | ⬜ |
+| `slti`  | I | ✅ | ✅ | ⬜ |
+| `sltiu` | I | ✅ | ✅ | ⬜ |
+| `lw`    | Load | ✅ | ✅ | ⬜ |
+| `sw`    | Store | ✅ | ✅ | ⬜ |
+| `beq`   | Branch | ✅ | ✅ | ⬜ |
+| `bne`   | Branch | ✅ | ✅ | ⬜ |
+| `blt`   | Branch | ✅ | ✅ | ⬜ |
+| `bge`   | Branch | ✅ | ✅ | ⬜ |
+| `bltu`  | Branch | ✅ | ✅ | ⬜ |
+| `bgeu`  | Branch | ✅ | ✅ | ⬜ |
+| `jal`   | Jump | ✅ | ✅ | ⬜ |
+| `jalr`  | Jump | ✅ | ✅ | ⬜ |
+| `lui`   | Upper-imm | ✅ | ✅ | ⬜ |
+| `auipc` | Upper-imm | ✅ | ✅ | ⬜ |
 
 Byte/halfword loads and stores (`lb`, `lh`, `lbu`, `lhu`, `sb`, `sh`) and
 trap-related instructions (`fence`, `ecall`, `ebreak`) are deferred, see Section 12.
+
+**By file** — is the whole block implemented, and does it have its own
+passing testbench (independent of which individual instructions still need
+per-instruction coverage above):
+
+| File | RTL | Testbench |
+|---|---|---|
+| `rtl/alu.v` | ✅ | ✅ |
+| `rtl/control.v` | ✅ | ⬜ |
+| `rtl/regfile.v` | ⬜ | ⬜ |
+| `rtl/imm_gen.v` | ⬜ | ⬜ |
+| `rtl/imem.v` | ⬜ | ⬜ |
+| `rtl/dmem.v` | ⬜ | ⬜ |
+| `rtl/riscv_top.v` | ⬜ | ⬜ |
 
 ### 2.3 Register Conventions
 
@@ -157,7 +172,7 @@ Loacted at **docs/datapath.pdf** Need to update:
 | Wire | Width | Description |
 |---|---|---|
 | `pc` | 32 | Current program counter |
-| `pc_next` | 32 | Next PC (mux: PC+4, branch target, or jump target) |
+| `pc_next` | 32 | Next PC (mux: PC+4, branch target, pc + imm, or rd1 + imm) |
 | `pc_plus4` | 32 | PC + 4 (return addresses, sequential flow) |
 | `instr` | 32 | Current instruction from IMEM |
 | `rs1_addr`, `rs2_addr` | 5 | Register file read addresses |
@@ -366,8 +381,6 @@ control unit's default assignment of `00` is fine, it just won't matter).
 | `slti`  | 1 | 0 | ALU  | rs1 | imm | SLT  | I | pc+4 |
 | `sltiu` | 1 | 0 | ALU  | rs1 | imm | SLTU | I | pc+4 |
 | `srli`  | 1 | 0 | ALU  | rs1 | imm | SRL  | I | pc+4 |
-
-All 31 rows filled in.
 
 ---
 

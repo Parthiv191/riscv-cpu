@@ -1,5 +1,4 @@
 // Control unit for RISC-V core
-
 module control (
     input  [6:0] opcode, // instr[6:0]
     input  [2:0] funct3, // instr[14:12]

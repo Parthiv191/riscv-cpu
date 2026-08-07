@@ -1,4 +1,4 @@
-# RISC-V CPU Makefile — Icarus + Verilator + Surfer
+# RISC-V CPU Makefile
 #
 # Multi-module project: rtl/ holds design sources, tb/ holds one
 # testbench per block (plus tb_top.v for full integration).
