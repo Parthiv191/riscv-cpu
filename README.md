@@ -1,47 +1,36 @@
 # riscv-cpu
 
-Building a 32-bit RISC-V CPU (RV32I) from scratch in Verilog to learn and get experiences with computer architecture and RISC-V, writing in verilog/system verilog and eventually implementing the cpu on an fpga. Doing this in two phases: a
-single-cycle version first to get something that actually works, then a
-5-stage pipelined version once that's solid.
+A 32-bit RISC-V CPU (RV32I) built from scratch in Verilog. **Still in progress** — single-cycle version first, pipelined version once that's solid.
 
-Early design (the datapath, the block breakdown, the whole single-cycle
-approach) is basically following Harris & Harris' *Digital Design and Computer
-Architecture* — I'm using their RISC-V single-cycle datapath as the starting
-point and extending it to cover more instructions than the textbook subset.
-Not trying to reinvent the wheel on the architecture side, just trying to
-actually build the thing with my own hands and understand how it works.
+## Why
 
-## Where things stand
+I wanted to actually understand how a CPU works below the instruction set, not just conceptually — so instead of taking a computer architecture class's word for it, I'm building one. The early design (datapath, block breakdown) follows Harris & Harris' *Digital Design and Computer Architecture: RISC-V Edition* as a base and extends it to cover more of the ISA than the textbook subset. Not trying to invent a new architecture, just build a real one by hand and understand every wire in it.
 
-Still very early in the project. Most of the scaffolding is done and design decisions have been made (see design doc). I'm in the process of writing the rtl/testbenches and actually verifying it works
- 
-- Top module: `riscv_top` (`rtl/riscv_top.v`)
-- Everything else lives in `rtl/`, one file per block (ALU, regfile, imm gen,
-  control unit, imem, dmem)
-- Each block gets its own testbench in `tb/` before it touches anything else
+## Where it stands
+
+- **Done, implemented and tested:** ALU, control unit, register file — each has its own self-checking testbench
+- **Interfaces defined, not implemented yet:** instruction memory, data memory, immediate generator
+- **Next up:** wire everything into a top-level module and get actual hand-assembled programs running in simulation
+
+Full instruction-by-instruction progress, the actual design decisions, and a few real bugs caught (and fixed) along the way are written up in [`docs/riscv_cpu_design_doc.md`](docs/riscv_cpu_design_doc.md).
+
+## Layout
+
+- `rtl/` — one file per block (ALU, regfile, immediate generator, control unit, instruction/data memory, top module)
+- `tb/` — a self-checking testbench per block, written and passing before that block gets wired into anything else
+- `docs/` — design doc, hand-drawn datapath, reference material
+- `programs/` — hand-assembled test programs, once there's a top module to run them on
 
 ## Build & simulate
 
-Using Icarus Verilog for simulation and Surfer for waveforms.
+Icarus Verilog for simulation, Verilator for lint, Surfer for waveforms.
 
 ```bash
 make lint          # verilator lint check
 make sim TB=alu    # build + run a block's testbench (default: alu)
-make wave TB=alu   # pop open the waveform in surfer
+make wave TB=alu   # open the waveform in surfer
 ```
 
-## Verification checklist
+## What's next
 
-- [ ] ALU — every op, a handful of vectors each
-- [ ] Regfile — write/read x1-x31, make sure x0 always reads 0
-- [ ] Imm gen — all 5 immediate formats, hand-checked against the ref sheet
-- [ ] Control unit — decode every supported opcode correctly
-- [ ] Dmem — sync write, async read
-- [ ] Full top-level integration — run some actual hand-assembled programs
-
-## Notes to self
-
-- Keep it Verilog-2005 for now, can revisit SystemVerilog features later
-- No interrupts, no CSRs, no compressed instructions, no M extension — v1 is
-  just enough RV32I to run real programs
-- Once single-cycle is solid, rewrite in systemVerilog and grow instruction set to include M type and maybe more, only then move on the phase 2 (pipelined)
+Wire everything into `riscv_top.v`, get a handful of hand-assembled test programs passing end-to-end, then start on the pipelined version.

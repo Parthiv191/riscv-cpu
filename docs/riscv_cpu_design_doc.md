@@ -1,56 +1,25 @@
-# RISC-V RV32I CPU — Design Doc
+# RISC-V RV32I CPU — Design Notes
 
-**Author:** Parthiv Patel
-**Started:** 6/14/26
-**Status:** DRAFT — `alu.v` and `control.v` complete, `riscv_top.v` next
+Building a 32-bit RISC-V CPU (RV32I subset) in Verilog, from scratch — single-cycle first, pipelined later. Base datapath follows Harris & Harris' *Digital Design and Computer Architecture: RISC-V Edition* (Ch. 7), extended to cover more of the ISA than the textbook subset.
 
 ---
 
-## 1. Project Overview
+## 1. Goals & Scope
 
-Building a 32-bit RISC-V CPU (RV32I subset) in Verilog, from scratch. Main
-goal right now is a **single-cycle CPU** — every instruction finishes in one
-clock cycle, no pipeline, nothing fancy. Just get it correct. Once that's
-solid I'll move on to a pipelined version (see Section 12 for what that
-looks like and what happens in between).
+- Pass a hand-written test suite covering every supported instruction, plus a small real program (array sum, GCD, something like that)
+- Clean Verilator lint
+- Stretch: get it running on a Basys 3 with LEDs/switches as I/O
+- Covering full RV32I for v1; maybe M/C/V extensions later, not now
 
-Reference for the single-cycle datapath is Harris & Harris' *Digital Design
-and Computer Architecture: RISC-V Edition*, Ch. 7 — I'm using their
-single-cycle datapath as the starting point and extending it to cover more
-of the ISA than the textbook subset does.
+**Not doing in v1:** exception/trap handling, CSRs beyond the bare minimum, interrupts, caches, MMU, compressed instructions, RV32M, branch prediction (predict-not-taken + flush is fine), multi-cycle memory.
 
-### 1.1 Success Criteria
-
-- Passes a hand-written test program suite covering every supported instruction
-- Passes a small end-to-end program (array sum, GCD, factorial, something like that) in sim
-- Synthesizes cleanly with Verilator (no lint warnings)
-- Stretch: gets it running on a Basys 3 with LEDs/switches as I/O
-
-### 1.2 Non-Goals (for now)
-
-- Exception / trap handling
-- CSRs (beyond whatever's strictly needed to run programs)
-- Interrupts
-- Caches
-- MMU / virtual memory
-- Compressed (RVC) instructions
-- Multiply/divide (RV32M)
-- Branch prediction (predict-not-taken + flush is fine)
-- Multi-cycle memory (memory is single-cycle for simplicity)
-
-### 1.3 Constraints
-
-- **Tools:** Icarus Verilog for sim, Surfer for waveforms, Vivado for Basys 3 stuff later.
-- **Language:** Verilog-2005. Might pull in SystemVerilog features (`logic`,
-  `always_ff`) once v1 actually works.
+**Tools/constraints:** Icarus Verilog + Surfer for sim, Vivado for Basys 3 later. Verilog-2005 for now — planning a SystemVerilog rewrite once single-cycle actually works (see Section 7), so no point learning SV syntax twice.
 
 ---
 
-## 2. ISA Subset
+## 2. Instructions & Progress
 
-Supporting enough of RV32I to run basic programs. Will cover entire subset and maybe add M(Multiplication), C(Compressed Instruction), and V(Vector Operations) extentions in the future. 
-
-### 2.1 Instructions Supported (v1) — 31 total
+31 instructions:
 
 | Category | Instructions |
 |---|---|
@@ -62,14 +31,11 @@ Supporting enough of RV32I to run basic programs. Will cover entire subset and m
 | Jump | `jal`, `jalr` |
 | Upper immediate | `lui`, `auipc` |
 
-### 2.2 Instruction Progress Tracker
+Byte/halfword loads/stores and trap instructions (`fence`/`ecall`/`ebreak`) are deferred — see Section 7.
 
-Three checkpoints per instruction: sketched on the hand-drawn datapath,
-decoded in `control.v`, and has a passing testbench vector of its own.
+`x0` is hardwired to 0 (reads always 0, writes discarded). Not enforcing ABI/calling-convention stuff in hardware, that's a compiler problem.
 
-Per file RTL completion is tracked below.
-
-Legend: ✅ done · ⬜ not done
+**Per-instruction** — sketched on the datapath, decoded in `control.v`, has its own testbench vector. Legend: ✅ done · ⬜ not done.
 
 | Instruction | Type | Datapath | Control | Testbench |
 |---|---|---|---|---|
@@ -105,95 +71,59 @@ Legend: ✅ done · ⬜ not done
 | `lui`   | Upper-imm | ✅ | ✅ | ⬜ |
 | `auipc` | Upper-imm | ✅ | ✅ | ⬜ |
 
-Byte/halfword loads and stores (`lb`, `lh`, `lbu`, `lhu`, `sb`, `sh`) and
-trap-related instructions (`fence`, `ecall`, `ebreak`) are deferred, see Section 12.
-
-**By file** — is the whole block implemented, and does it have its own
-passing testbench (independent of which individual instructions still need
-per-instruction coverage above):
+**Per-file** — is the whole block implemented, does it have its own passing testbench:
 
 | File | RTL | Testbench |
 |---|---|---|
 | `rtl/alu.v` | ✅ | ✅ |
-| `rtl/control.v` | ✅ | ⬜ |
-| `rtl/regfile.v` | ⬜ | ⬜ |
+| `rtl/control.v` | ✅ | ✅ |
+| `rtl/regfile.v` | ✅ | ✅ |
 | `rtl/imm_gen.v` | ⬜ | ⬜ |
 | `rtl/imem.v` | ⬜ | ⬜ |
 | `rtl/dmem.v` | ⬜ | ⬜ |
 | `rtl/riscv_top.v` | ⬜ | ⬜ |
 
-### 2.3 Register Conventions
-
-- 32 general-purpose registers, `x0`–`x31`, 32 bits each
-- `x0` hardwired to zero: reads always return 0, writes silently discarded
-- Not enforcing ABI/calling-convention stuff in hardware, only that x0 = 0
-
 ---
 
-## 3. Microarchitecture Overview
+## 3. Architecture
 
-- One instruction per clock cycle
-- Combinational IMEM, regfile read ports, ALU, DMEM read
-- Synchronous writes to regfile, DMEM, and PC (all on `posedge clk`)
-- Reference datapath: Harris & Harris Figure 7.11, adapted for the extended instruction set
+- Single-cycle: one instruction, start to finish, per clock — no pipeline
+- Combinational: IMEM, regfile reads, ALU, DMEM read
+- Synchronous: regfile writes, DMEM writes, PC — all on `posedge clk`
+- Harvard memory (separate IMEM/DMEM), both BRAM-backed, single-cycle access, word-addressed internally / byte-addressed externally
+- IMEM: read-only, `$readmemh`-loaded. DMEM: read/write, zero-initialized.
 
-### 3.1 Memory Model
+**Address map:** `0x0000_0000–0x0000_FFFF` IMEM (64KB) · `0x1000_0000–0x1000_FFFF` DMEM (64KB) · `0x2000_0000–0x2000_000F` MMIO (reserved for Basys 3 LEDs/switches)
 
-- Harvard architecture (separate IMEM and DMEM)
-- Both BRAM-backed, single-cycle access
-- IMEM: read-only, preloaded via `$readmemh` from a `.mem` file at sim start
-- DMEM: read/write, zero-initialized
-- Both word-addressed internally, byte-addressed externally (standard RISC-V convention)
+**Reset:** PC → 0 on sync active-high reset. Regfile and DMEM are *not* reset — whatever's there is there.
 
-**Address map (v1):**
-- `0x0000_0000 – 0x0000_FFFF` — Instruction memory (64 KB)
-- `0x1000_0000 – 0x1000_FFFF` — Data memory (64 KB)
-- `0x2000_0000 – 0x2000_000F` — Memory-mapped I/O (reserved for Basys 3 LEDs/switches)
+**Datapath:** hand-drawn, `docs/datapath.pdf`. Still needs: AUIPC path, LUI, JALR target, all 6 branch conditions (currently only `beq`/`bne` are on it).
 
-### 3.2 Reset Behavior
-
-- PC resets to `0x0000_0000` on `rst = 1` (synchronous, active-high)
-- Register file is NOT reset — reads before writes just return whatever's there (0 from x0, garbage/zero from BRAM init elsewhere)
-- DMEM contents not reset — assume BRAM starts at 0
-
----
-
-## 4. Datapath
-
-Loacted at **docs/datapath.pdf** Need to update:
-
-- Add the AUIPC path (immediate + PC → result)
-- Add LUI
-- Add JALR support (write PC+4 to rd, jump)
-- Handle all 6 branch conditions, not just `beq` and `bne`
-
-### 4.1 Key Wires and Widths
+**Key wires:**
 
 | Wire | Width | Description |
 |---|---|---|
 | `pc` | 32 | Current program counter |
-| `pc_next` | 32 | Next PC (mux: PC+4, branch target, pc + imm, or rd1 + imm) |
-| `pc_plus4` | 32 | PC + 4 (return addresses, sequential flow) |
+| `pc_next` | 32 | Next PC (mux: PC+4, branch target, pc+imm, or rd1+imm) |
+| `pc_plus4` | 32 | PC + 4 |
 | `instr` | 32 | Current instruction from IMEM |
-| `rs1_addr`, `rs2_addr` | 5 | Register file read addresses |
-| `rd_addr` | 5 | Register file write address |
-| `rs1_data`, `rs2_data` | 32 | Register file read data |
+| `rs1_addr`, `rs2_addr` | 5 | Regfile read addresses |
+| `rd_addr` | 5 | Regfile write address |
+| `rs1_data`, `rs2_data` | 32 | Regfile read data |
 | `imm` | 32 | Sign-extended immediate |
 | `alu_a`, `alu_b` | 32 | ALU operands |
 | `alu_result` | 32 | ALU output |
-| `alu_zero` | 1 | ALU zero flag (for BEQ) |
-| `mem_addr` | 32 | Data memory address (usually `alu_result`) |
-| `mem_wdata` | 32 | Data memory write data (`rs2_data`) |
-| `mem_rdata` | 32 | Data memory read data |
-| `result` | 32 | Value written back to regfile (mux: alu_result, mem_rdata, pc_plus4) |
+| `alu_zero` | 1 | ALU zero flag |
+| `mem_addr` | 32 | DMEM address (usually `alu_result`) |
+| `mem_wdata` | 32 | DMEM write data (`rs2_data`) |
+| `mem_rdata` | 32 | DMEM read data |
+| `result` | 32 | Regfile writeback value (mux: alu_result, mem_rdata, pc_plus4) |
 
 ---
 
-## 5. Block-by-Block Descriptions
+## 4. Blocks
 
-### 5.1 ALU (`rtl/alu.v`)
-
-Arithmetic/logic for R-type, I-type, load/store address calc, and branch comparison.
+**ALU — `rtl/alu.v`** — ✅ done
 
 ```verilog
 module alu (
@@ -205,31 +135,20 @@ module alu (
 );
 ```
 
-| `alu_op` | Operation | Description |
-|---|---|---|
-| 0000 | ADD | a + b |
-| 1000 | SUB | a - b |
-| 0001 | SLL | a << b[4:0] |
-| 0010 | SLT | signed(a) < signed(b) ? 1 : 0 |
-| 0011 | SLTU | a < b ? 1 : 0 |
-| 0100 | XOR | a ^ b |
-| 0101 | SRL | a >> b[4:0] (logical) |
-| 1101 | SRA | a >>> b[4:0] (arithmetic) |
-| 0110 | OR | a \| b |
-| 0111 | AND | a & b |
-| 1010 | PASS | b (passthrough, ignores `a` — used for `lui`: `rd = imm`) |
+| `alu_op` | Op | | `alu_op` | Op |
+|---|---|---|---|---|
+| 0000 | ADD (a+b) | | 0101 | SRL (a>>b[4:0]) |
+| 1000 | SUB (a-b) | | 1101 | SRA (a>>>b[4:0]) |
+| 0001 | SLL (a<<b[4:0]) | | 0110 | OR |
+| 0010 | SLT (signed a<b) | | 0111 | AND |
+| 0011 | SLTU (unsigned a<b) | | 1010 | PASS (b, ignores a — used by `lui`) |
+| 0100 | XOR | | | |
 
-**Design decision: `alu_op` is derived from `{funct7[5], funct3}`** 
-Instead of having a lookup table for each instruction, by doing this concatonation this gets simplified.
+- `alu_op = {funct7[5], funct3}` — RISC-V's own funct3 encoding already lines up with this, so no per-instruction lookup table needed in the control unit
+- `$signed()` for SLT/SRA, `b[4:0]` masks every shift amount so a runaway shift can't happen
+- `zero` is combinational, `result == 32'b0`
 
-Notes:
-- Use `$signed()` for SLT and SRA
-- Force `b[4:0]` on all shifts so a runaway shift amount can't happen
-- `zero` is combinational, driven from `result == 32'b0`
-
-### 5.2 Register File (`rtl/regfile.v`)
-
-32 × 32-bit storage, 2 read ports, 1 write port.
+**Register File — `rtl/regfile.v`** — ✅ done
 
 ```verilog
 module regfile (
@@ -241,12 +160,10 @@ module regfile (
 );
 ```
 
-- Reads are async/combinational
-- Writes are sync on `posedge clk` when `we` is high
-- Reads from `x0` always return 0 (mux the output)
-- Writes to `x0` are effectively a no-op (can silently drop them, or let them write and just never read it back — either works)
+- Async read, sync write on `posedge clk` when `we` is high
+- `x0` forced to 0 on the *read* side with a mux, not by blocking writes to storage (tried that first, doesn't work — a `reg` array word can't be both continuously assigned and procedurally written)
 
-### 5.3 Instruction Memory (`rtl/imem.v`)
+**Instruction Memory — `rtl/imem.v`** — ⬜ stub
 
 ```verilog
 module imem (
@@ -255,13 +172,10 @@ module imem (
 );
 ```
 
-- Async/combinational lookup
-- Word-aligned: uses `addr[15:2]` as the internal index (drops bottom 2 bits)
-- Preloaded with `$readmemh("program.mem", memory_array)` in an `initial` block
-- 64 KB (16K instructions)
-- Keep async for now — convert to sync-read BRAM when the pipeline phase starts
+- Async lookup, word-aligned (`addr[15:2]` as the index), `$readmemh("program.mem", ...)`, 64KB
+- Convert to sync-read BRAM once the pipeline phase starts
 
-### 5.4 Data Memory (`rtl/dmem.v`)
+**Data Memory — `rtl/dmem.v`** — ⬜ stub
 
 ```verilog
 module dmem (
@@ -273,12 +187,9 @@ module dmem (
 );
 ```
 
-- Sync write on `posedge clk` when `we` is high
-- Async read
-- Word-only in v1, no byte-enables
-- 64 KB
+- Sync write / async read, word-only (no byte-enables in v1), 64KB
 
-### 5.5 Immediate Generator (`rtl/imm_gen.v`)
+**Immediate Generator — `rtl/imm_gen.v`** — ⬜ stub
 
 ```verilog
 module imm_gen (
@@ -296,13 +207,10 @@ module imm_gen (
 | 011 | U-type | `{instr[31:12], 12'b0}` |
 | 100 | J-type | `{{11{instr[31]}}, instr[31], instr[19:12], instr[20], instr[30:21], 1'b0}` |
 
-Branch/jump immediates have an implicit LSB of 0 (instructions are 4-byte
-aligned), which is why B/J have `1'b0` tacked on at position `[0]`.
+- Branch/jump immediates have an implicit 0 in bit 0 (instructions are 4-byte aligned)
+- Most bug-prone module in the whole design — test every format against the ref sheet before wiring it up
 
-
-### 5.6 Control Unit (`rtl/control.v`)
-
-Decodes opcode/funct3/funct7 into every control signal.
+**Control Unit — `rtl/control.v`** — ✅ done
 
 ```verilog
 module control (
@@ -312,7 +220,7 @@ module control (
     input        alu_zero,
     output       reg_write,
     output       mem_write,
-    output [1:0] result_src,     // WB mux select: 00=ALU, 01=MEM, 10=PC+4
+    output [1:0] result_src,     // 00=ALU, 01=MEM, 10=PC+4
     output       alu_src_a,      // 0=rs1, 1=pc (AUIPC)
     output       alu_src_b,      // 0=rs2, 1=imm
     output [3:0] alu_op,
@@ -320,33 +228,6 @@ module control (
     output [1:0] pc_src          // 0=pc+4, 1=branch, 2=jal, 3=jalr
 );
 ```
-
-See Section 6 for the full signal table.
-
-### 5.7 Top Module (`rtl/riscv_top.v`)
-
-Instantiates all the blocks, holds the PC register and muxes.
-
-```verilog
-module riscv_top (
-    input         clk,
-    input         rst,
-    output [31:0] debug_pc,
-    output [31:0] debug_instr
-);
-```
-
-Contains: PC register (sync reset), PC+4 adder, next-PC mux (PC+4 / branch /
-jal / jalr target), branch target adder, all block instantiations, result
-writeback mux.
-
----
-
-## 6. Control Signals
-
-`result_src` encoding: `00 = ALU`, `01 = MEM`, `10 = PC+4` (the "–" rows
-below don't write a register, so `result_src` is a don't-care there — the
-control unit's default assignment of `00` is fine, it just won't matter).
 
 | Instruction | `reg_write` | `mem_write` | `result_src` | `alu_src_a` | `alu_src_b` | `alu_op` | `imm_src` | `pc_src` |
 |---|---|---|---|---|---|---|---|---|
@@ -361,6 +242,14 @@ control unit's default assignment of `00` is fine, it just won't matter).
 | `slt`   | 1 | 0 | ALU  | rs1 | rs2 | SLT  | – | pc+4 |
 | `sltu`  | 1 | 0 | ALU  | rs1 | rs2 | SLTU | – | pc+4 |
 | `addi`  | 1 | 0 | ALU  | rs1 | imm | ADD  | I | pc+4 |
+| `andi`  | 1 | 0 | ALU  | rs1 | imm | AND  | I | pc+4 |
+| `ori`   | 1 | 0 | ALU  | rs1 | imm | OR   | I | pc+4 |
+| `xori`  | 1 | 0 | ALU  | rs1 | imm | XOR  | I | pc+4 |
+| `slli`  | 1 | 0 | ALU  | rs1 | imm | SLL  | I | pc+4 |
+| `srli`  | 1 | 0 | ALU  | rs1 | imm | SRL  | I | pc+4 |
+| `srai`  | 1 | 0 | ALU  | rs1 | imm | SRA  | I | pc+4 |
+| `slti`  | 1 | 0 | ALU  | rs1 | imm | SLT  | I | pc+4 |
+| `sltiu` | 1 | 0 | ALU  | rs1 | imm | SLTU | I | pc+4 |
 | `lw`    | 1 | 0 | MEM  | rs1 | imm | ADD  | I | pc+4 |
 | `sw`    | 0 | 1 | –    | rs1 | imm | ADD  | S | pc+4 |
 | `beq`   | 0 | 0 | –    | rs1 | rs2 | SUB  | B | branch if zero |
@@ -373,155 +262,88 @@ control unit's default assignment of `00` is fine, it just won't matter).
 | `jalr`  | 1 | 0 | PC+4 | rs1 | imm | ADD | I | jalr target |
 | `lui`   | 1 | 0 | ALU  | –   | imm | PASS | U | pc+4 |
 | `auipc` | 1 | 0 | ALU  | pc | imm | ADD | U | pc+4 |
-| `andi`  | 1 | 0 | ALU  | rs1 | imm | AND  | I | pc+4 |
-| `ori`   | 1 | 0 | ALU  | rs1 | imm | OR   | I | pc+4 |
-| `xori`  | 1 | 0 | ALU  | rs1 | imm | XOR  | I | pc+4 |
-| `slli`  | 1 | 0 | ALU  | rs1 | imm | SLL  | I | pc+4 |
-| `srai`  | 1 | 0 | ALU  | rs1 | imm | SRA  | I | pc+4 |
-| `slti`  | 1 | 0 | ALU  | rs1 | imm | SLT  | I | pc+4 |
-| `sltiu` | 1 | 0 | ALU  | rs1 | imm | SLTU | I | pc+4 |
-| `srli`  | 1 | 0 | ALU  | rs1 | imm | SRL  | I | pc+4 |
+
+- `alu_op` isn't a per-row lookup for R-type/I-type rows — it's generated from `{funct7[5], funct3}` directly (see 4.1). Real decode logic is only needed for the rows where it isn't derived that way: `lw`/`sw`/`jalr`/`auipc` (always ADD) and branches (SUB/SLT/SLTU off branch `funct3`)
+- The "–" rows don't write a register, so `result_src` is a don't-care there
+- Watch out for: `funct7[5]` only means something real for R-type and I-type-shift (`slli`/`srli`/`srai`) — every other OP-IMM instruction has to force that bit to 0, since it's just part of the immediate for those, not a real subtract/negate flag. Learned this one the hard way (`andi` with certain immediates was silently landing on the wrong ALU op before this got fixed).
+
+**Top Module — `rtl/riscv_top.v`** — ⬜ next up
+
+```verilog
+module riscv_top (
+    input         clk,
+    input         rst,
+    output [31:0] debug_pc,
+    output [31:0] debug_instr
+);
+```
+
+- PC register (sync reset), PC+4 adder, next-PC mux, branch target adder, all block instantiations, writeback mux
 
 ---
 
-## 7. Verification Plan
+## 5. Verification
 
-### 7.1 Per-Block Testbenches
+**Per-block:**
 
 | Block | Test cases |
 |---|---|
-| ALU | Every op, 4 pattern classes each: pos-pos, pos-neg, neg-neg, boundaries (0, all-ones, MSB set). ~40 vectors. |
-| Regfile | Write x1–x31, read back. Verify x0 always reads 0. Verify write-to-x0 is a no-op. |
-| Imem | Preload a known pattern, verify readback at every address. |
-| Dmem | Write + read at several addresses. Verify sync write, async read. |
-| Imm_gen | 3 vectors per format × 5 formats = 15+ vectors, checked against the ref sheet. |
-| Control | Exhaustive over every supported opcode, compared against Section 6. |
+| ALU | Every op, signed/unsigned edge cases, shift-amount masking, zero flag, undefined opcode |
+| Regfile | Write/read across ports, `x0` behavior, `we=0` no-op, read-during-write to the same address |
+| Control | Every opcode against the Section 4 table |
+| Imem/Dmem/Imm_gen | Not written yet |
 
-### 7.2 Integration Tests
-
-Hand-assembled programs, one `.mem` file each under `programs/`:
+**Integration** (hand-assembled programs, `.mem` files under `programs/`):
 
 1. `t01_addi.mem` — basic arithmetic
 2. `t02_load_store.mem` — store then load into a different register
-3. `t03_branch.mem` — loop with `beq`/`bne`, branch taken/not-taken
-4. `t04_jump.mem` — `jal` to a label, verify return address in `rd`
+3. `t03_branch.mem` — loop with `beq`/`bne`
+4. `t04_jump.mem` — `jal`, verify return address
 5. `t05_sum_array.mem` — sum 10 numbers in memory
-6. `t06_all_r_type.mem` — exercise every R-type
-7. `t07_all_i_type.mem` — exercise every I-type
-8. `t08_lui_auipc.mem` — verify upper-immediate ops
+6. `t06_all_r_type.mem` / `t07_all_i_type.mem` — exercise every R/I-type
+7. `t08_lui_auipc.mem` — upper-immediate ops
 
-Pass criterion: after the program halts (last instruction is `jal x0, 0`,
-i.e. infinite self-loop), dump the register file and compare against
-expected values.
+Pass = program halts on `jal x0, 0` (infinite self-loop), dump regfile, compare against expected.
 
-### 7.3 RISC-V Test Suite (stretch goal)
-
-`riscv-tests` has thousands of ISA compliance tests. Try a subset once v1 works.
+Stretch: run a subset of the official `riscv-tests` suite once v1 works.
 
 ---
 
-## 8. File Structure (current)
+## 6. Notes
 
-```
-riscv_cpu/
-├── README.md
-├── Makefile
-├── .gitignore
-├── rtl/
-│   ├── alu.v          (in progress)
-│   ├── regfile.v       (stub)
-│   ├── imm_gen.v        (stub)
-│   ├── control.v        (stub)
-│   ├── imem.v           (stub)
-│   ├── dmem.v           (stub)
-│   └── riscv_top.v      (stub)
-├── tb/
-│   ├── tb_alu.v         (stub)
-│   ├── tb_regfile.v     (stub)
-│   ├── tb_imm_gen.v     (stub)
-│   ├── tb_control.v     (stub)
-│   ├── tb_imem.v        (stub)
-│   ├── tb_dmem.v        (stub)
-│   └── tb_top.v         (stub)
-├── programs/           (empty — .mem test programs go here later)
-└── docs/
-    ├── riscv_cpu_design_doc.md        (this document)
-    ├── Immediate Coding Diagram.png   (reference, gitignored)
-    ├── Ref Sheet.pdf                  (reference, gitignored)
-    ├── riscv-unprivileged.pdf         (reference, gitignored)
-    └── datapath.pdf                   (reference)
-    
-```
+**Open questions:**
+- PC bootstrap: mostly resolved by construction — PC starts at 0, `$readmemh` loads the program at address 0
+- JALR: spec says target = `(rs1 + imm) & ~1` — make sure `riscv_top.v` actually clears that bit
+- When it's time to pipeline: rewrite from scratch rather than refactor — cleaner than bolting pipeline registers onto something that wasn't built for it
 
----
-
-## 9. Open Questions / Notes
-
-Running log of stuff I need to decide, revisit, or watch out for.
-
-- How to bootstrap: does PC really just start at 0, or does the program need a "startup" sequence?
-- For JALR, spec says target = `(rs1 + imm) & ~1` (clear bit 0). Make sure the implementation actually does this.
-- For branches: is `alu_zero` + `alu_result[0]` (for SLT-based branches) enough, or do I need a dedicated branch comparator?
-- When it's time to pipeline: rewrite from scratch, or refactor the single-cycle version? Leaning rewrite — cleaner than bolting pipeline registers onto something that wasn't built for it.
-- **Watch this one when writing `control.v`:** don't let `instr[30]` pass through as the alu_op top bit for `addi` — that bit is part of `addi`'s immediate, not a sub flag. Only R-type and I-type-shift (`slli`/`srli`/`srai`) should use `funct7[5]` for real. Getting this wrong means `addi` silently becomes `sub` for certain immediate values.
-
----
-
-## 10. Timeline
+**Rough timeline** (already slipping, not stressing about it):
 
 | Week | Milestone |
 |---|---|
-| 1 | ALU + regfile + testbenches passing *(currently here)* |
-| 2 | Imm_gen + control + imem/dmem, all block-tested |
-| 3 | Top module wired, t01–t04 pass in sim |
+| 1 | ALU + regfile + control done and tested *(here)* |
+| 2 | Imm_gen + imem/dmem block-tested, `riscv_top.v` wired |
+| 3 | t01–t04 pass in sim |
 | 4 | t05–t08 pass; start pipeline design |
-| 5 | Pipeline datapath complete in sim (no hazards yet) |
-| 6+ | Forwarding, stalls, flushes; all t0X programs pass on pipelined version |
+| 5+ | Pipeline datapath, then hazards |
+
+**References:**
+- Harris & Harris, *Digital Design and Computer Architecture: RISC-V Edition*, Ch. 7 — main reference, basically my bible right now
+- RISC-V Instruction Set Manual, Volume I (Unprivileged)
+- darkriscv (github.com/darklife/darkriscv), picorv32 (github.com/YosysHQ/picorv32) — for ideas when stuck
 
 ---
 
-## 11. References
+## 7. Later: Pipelining + What's In Between
 
-- Harris & Harris, *Digital Design and Computer Architecture: RISC-V Edition*, Ch. 7 — main reference for the single-cycle datapath, basically my bible right now
-- RISC-V Instruction Set Manual, Volume I (Unprivileged), latest ratified version
-- Reference sheet (H&H Figure B.1 + Table B.1 — printed and taped to my monitor)
-- darkriscv (github.com/darklife/darkriscv) — read the top module for ideas
-- picorv32 (github.com/YosysHQ/picorv32) — state machine reference
+Not building this yet, just leaving notes so I don't lose the plan.
 
----
+**Between single-cycle working and starting the pipeline:** byte/halfword loads and stores (`lb`/`lh`/`lbu`/`lhu`/`sb`/`sh`), trap instructions (`fence`/`ecall`/`ebreak`), maybe adopt SystemVerilog if it's not too disruptive, stretch goal of Basys 3.
 
-## 12. Later On: Pipelining + What Happens In Between
-
-Not building this yet — just leaving notes so I don't lose the plan.
-
-### 12.1 Between single-cycle working and starting the pipeline
-
-Stuff to pick up once t01–t08 all pass on the single-cycle version, before
-touching pipeline registers:
-
-- Byte/halfword loads and stores: `lb`, `lh`, `lbu`, `lhu`, `sb`, `sh` (needs byte-lane logic in dmem)
-- Trap-related instructions: `fence`, `ecall`, `ebreak`
-- Maybe adopt some SystemVerilog features (`logic`, `always_ff`) if it's not too disruptive
-- Stretch goal: get it running on the Basys 3 with LEDs/switches
-
-### 12.2 Pipeline (Phase 2) skeleton
-
-Stages: **IF → ID → EX → MEM → WB**
-
-- IF — PC → IMEM → IF/ID register
-- ID — decode + regfile read + immediate gen → ID/EX register
-- EX — ALU execution → EX/MEM register
-- MEM — data memory access → MEM/WB register
-- WB — write result to regfile
-
-**Pipeline register contents:** TBD — this is the #1 design decision for the pipeline, need to enumerate exactly what each register holds.
-
-**Hazards:**
-- Data: EX/MEM → EX forwarding, MEM/WB → EX forwarding, load-use stall (1 cycle when load is in EX and the dependent instruction is in ID)
-- Control: predict-not-taken, flush IF/ID and ID/EX on a taken branch
+**Pipeline skeleton:** IF → ID → EX → MEM → WB.
+- Data hazards: EX/MEM → EX and MEM/WB → EX forwarding, load-use stall
+- Control hazards: predict-not-taken, flush IF/ID + ID/EX on a taken branch
 - Structural: none expected (Harvard memory)
-
-**Forwarding unit / hazard detection unit:** TBD, design after the basic 5-stage datapath is working with no hazard handling.
+- Pipeline register contents and the forwarding/hazard-detection units are TBD — design those after the plain 5-stage datapath works with no hazard handling at all
 
 ---
 
@@ -529,14 +351,7 @@ Stages: **IF → ID → EX → MEM → WB**
 
 - **6/14/26** — Initial draft created from scaffold.
 - **7/18/26** — Fixed ALU op table descriptions, added rtl/tb file scaffold.
-- **7/28/26** — Reworked doc to focus on single-cycle only, added the
-  instruction progress tracker, moved pipeline notes to Section 12, started
-  tracking this file in git.
-- **7/30/26** — Dropped `mem_to_reg` from the control unit interface
-  (redundant with `result_src`), pinned down `result_src`'s bit encoding
-  (00=ALU/01=MEM/10=PC+4), and widened the `alu_op`-passthrough exception in
-  5.6 — it's not just `addi`, it's every non-shift OP-IMM instruction.
+- **7/28/26** — Reworked doc to focus on single-cycle only, added the instruction progress tracker, moved pipeline notes to their own section, started tracking this file in git.
+- **7/30/26** — Dropped `mem_to_reg` (redundant with `result_src`), pinned down `result_src`'s bit encoding, widened the `alu_op`-passthrough exception — it's not just `addi`, it's every non-shift OP-IMM instruction.
 - **8/1/26** — `control.v` complete for all 9 opcodes / 31 instructions.
-  Filled in Section 6's remaining 8 R-type rows, added the `1010`/PASS ALU
-  op (used for `lui`) to the 5.1 table, and synced the instruction tracker's
-  Control column to match.
+- **8/9/26** — `regfile.v` + testbench complete. Rewrote this doc in a leaner, note-style format — fewer sections, dropped the author/status header, kept the tables and interfaces since those are the actual working reference.
