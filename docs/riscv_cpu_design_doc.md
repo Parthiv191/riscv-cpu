@@ -6,14 +6,14 @@ Building a 32-bit RISC-V CPU (RV32I subset) in Verilog, from scratch — single-
 
 ## 1. Goals & Scope
 
-- Pass a hand-written test suite covering every supported instruction, plus a small real program (array sum, GCD, something like that)
+- Pass a hand-written test suite covering every supported instruction and succesfully run capable programs
 - Clean Verilator lint
-- Stretch: get it running on a Basys 3 with LEDs/switches as I/O
-- Covering full RV32I for v1; maybe M/C/V extensions later, not now
+- Implement on FPGA and use leds and swtiches as I/O
+- Covering full RV32I for v1; maybe M/C/V extensions later
 
-**Not doing in v1:** exception/trap handling, CSRs beyond the bare minimum, interrupts, caches, MMU, compressed instructions, RV32M, branch prediction (predict-not-taken + flush is fine), multi-cycle memory.
+**Not doing in v1:** exception/trap handling, CSRs beyond the bare minimum, interrupts, caches, MMU, compressed instructions, RV32M, branch prediction, multi-cycle memory.
 
-**Tools/constraints:** Icarus Verilog + Surfer for sim, Vivado for Basys 3 later. Verilog-2005 for now — planning a SystemVerilog rewrite once single-cycle actually works (see Section 7), so no point learning SV syntax twice.
+**Tools/constraints:** Icarus Verilog + Surfer for sim, Vivado for Basys 3 later. Currently written in Verilog-2005 with plans to conver to SystemVerilog once single-cycle actually works (see Section 7).
 
 ---
 
@@ -33,7 +33,7 @@ Building a 32-bit RISC-V CPU (RV32I subset) in Verilog, from scratch — single-
 
 Byte/halfword loads/stores and trap instructions (`fence`/`ecall`/`ebreak`) are deferred — see Section 7.
 
-`x0` is hardwired to 0 (reads always 0, writes discarded). Not enforcing ABI/calling-convention stuff in hardware, that's a compiler problem.
+`x0` is hardwired to 0 (reads always 0, writes discarded). Not enforcing ABI/calling-convention stuff in hardware.
 
 **Per-instruction** — sketched on the datapath, decoded in `control.v`, has its own testbench vector. Legend: ✅ done · ⬜ not done.
 
@@ -97,7 +97,7 @@ Byte/halfword loads/stores and trap instructions (`fence`/`ecall`/`ebreak`) are 
 
 **Reset:** PC → 0 on sync active-high reset. Regfile and DMEM are *not* reset — whatever's there is there.
 
-**Datapath:** hand-drawn, `docs/datapath.pdf`. Still needs: AUIPC path, LUI, JALR target, all 6 branch conditions (currently only `beq`/`bne` are on it).
+**Datapath:** hand-drawn, `docs/datapath.pdf`. Missing a few instructions that my cpu supports. **I will redraw it better w/ all instructions**
 
 **Key wires:**
 
@@ -163,7 +163,7 @@ module regfile (
 - Async read, sync write on `posedge clk` when `we` is high
 - `x0` forced to 0 on the *read* side with a mux, not by blocking writes to storage (tried that first, doesn't work — a `reg` array word can't be both continuously assigned and procedurally written)
 
-**Instruction Memory — `rtl/imem.v`** — ⬜ stub
+**Instruction Memory — `rtl/imem.v`** — ⬜ Skeleton
 
 ```verilog
 module imem (
@@ -175,7 +175,7 @@ module imem (
 - Async lookup, word-aligned (`addr[15:2]` as the index), `$readmemh("program.mem", ...)`, 64KB
 - Convert to sync-read BRAM once the pipeline phase starts
 
-**Data Memory — `rtl/dmem.v`** — ⬜ stub
+**Data Memory — `rtl/dmem.v`** — ⬜ Skeleton
 
 ```verilog
 module dmem (
@@ -189,7 +189,7 @@ module dmem (
 
 - Sync write / async read, word-only (no byte-enables in v1), 64KB
 
-**Immediate Generator — `rtl/imm_gen.v`** — ⬜ stub
+**Immediate Generator — `rtl/imm_gen.v`** — ⬜ Skeleton
 
 ```verilog
 module imm_gen (
@@ -267,7 +267,7 @@ module control (
 - The "–" rows don't write a register, so `result_src` is a don't-care there
 - Watch out for: `funct7[5]` only means something real for R-type and I-type-shift (`slli`/`srli`/`srai`) — every other OP-IMM instruction has to force that bit to 0, since it's just part of the immediate for those, not a real subtract/negate flag. Learned this one the hard way (`andi` with certain immediates was silently landing on the wrong ALU op before this got fixed).
 
-**Top Module — `rtl/riscv_top.v`** — ⬜ next up
+**Top Module — `rtl/riscv_top.v`** — ⬜ Skeleton
 
 ```verilog
 module riscv_top (
@@ -303,20 +303,16 @@ module riscv_top (
 6. `t06_all_r_type.mem` / `t07_all_i_type.mem` — exercise every R/I-type
 7. `t08_lui_auipc.mem` — upper-immediate ops
 
-Pass = program halts on `jal x0, 0` (infinite self-loop), dump regfile, compare against expected.
-
-Stretch: run a subset of the official `riscv-tests` suite once v1 works.
+Try to run a subset of the official `riscv-tests` suite once v1 works.
 
 ---
 
 ## 6. Notes
 
 **Open questions:**
-- PC bootstrap: mostly resolved by construction — PC starts at 0, `$readmemh` loads the program at address 0
-- JALR: spec says target = `(rs1 + imm) & ~1` — make sure `riscv_top.v` actually clears that bit
 - When it's time to pipeline: rewrite from scratch rather than refactor — cleaner than bolting pipeline registers onto something that wasn't built for it
 
-**Rough timeline** (already slipping, not stressing about it):
+**Rough timeline**:
 
 | Week | Milestone |
 |---|---|
@@ -329,15 +325,15 @@ Stretch: run a subset of the official `riscv-tests` suite once v1 works.
 **References:**
 - Harris & Harris, *Digital Design and Computer Architecture: RISC-V Edition*, Ch. 7 — main reference, basically my bible right now
 - RISC-V Instruction Set Manual, Volume I (Unprivileged)
-- darkriscv (github.com/darklife/darkriscv), picorv32 (github.com/YosysHQ/picorv32) — for ideas when stuck
+- darkriscv (github.com/darklife/darkriscv), picorv32 (github.com/YosysHQ/picorv32)
 
 ---
 
 ## 7. Later: Pipelining + What's In Between
 
-Not building this yet, just leaving notes so I don't lose the plan.
+Not building this yet, just leaving notes.
 
-**Between single-cycle working and starting the pipeline:** byte/halfword loads and stores (`lb`/`lh`/`lbu`/`lhu`/`sb`/`sh`), trap instructions (`fence`/`ecall`/`ebreak`), maybe adopt SystemVerilog if it's not too disruptive, stretch goal of Basys 3.
+**Between single-cycle working and starting the pipeline:** byte/halfword loads and stores (`lb`/`lh`/`lbu`/`lhu`/`sb`/`sh`), trap instructions (`fence`/`ecall`/`ebreak`), maybe adopt SystemVerilog if it's not too disruptive, Basys 3.
 
 **Pipeline skeleton:** IF → ID → EX → MEM → WB.
 - Data hazards: EX/MEM → EX and MEM/WB → EX forwarding, load-use stall
