@@ -1,4 +1,4 @@
-// 32 x 32-bit register file for RISC-V core
+// 32 x 32-bit register file for RISC-V core, reg x0 must always be 0
 
 module regfile (
     input clk,
@@ -8,13 +8,13 @@ module regfile (
     output [31:0] rs1_data, rs2_data
 );
     reg [31:0] regs [31:0];
-    assign regs[5'd0] = 32'd0;
 
-    assign rs1_data = regs [rs1_addr];
-    assign rs2_data = regs [rs2_addr];
+    // Whenever addressing x0, assign 0, value doesn't matter
+    assign rs1_data = (rs1_addr == 5'd0) ? 32'd0 : regs [rs1_addr];
+    assign rs2_data = (rs2_addr == 5'd0) ? 32'd0 : regs [rs2_addr];
 
     always @(posedge clk) begin
-        if (we) begin
+        if (we & rd_addr !== 5'd0) begin
             regs[rd_addr] <= rd_data;
         end
     end
