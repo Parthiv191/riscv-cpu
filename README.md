@@ -8,9 +8,9 @@ I wanted to actually understand how a CPU works below the instruction set and si
 
 ## Where it stands
 
-**Single-cycle core: done.** All 7 blocks (ALU, control unit, register file, instruction memory, data memory, immediate generator, top-level module) are implemented, each with its own self-checking testbench, and `make lint` passes clean with zero Verilator warnings. Every one of the 31 supported RV32I instructions has actually run through the real `riscv_top` datapath, not just been decoded in isolation — 8 hand-assembled test programs cover arithmetic, load/store, all 6 branch conditions, both jump forms, both upper-immediate ops, and a small real program that sums an array in memory.
+**Single-cycle core: done.** All 7 blocks (ALU, control unit, register file, instruction memory, data memory, immediate generator, top-level module) are implemented, each with its own self-checking testbench, and `make lint` passes clean. Every one of the 31 supported RV32I instructions has run through the `riscv_top` datapath. 8 hand-assembled test programs cover arithmetic, load/store, all 6 branch conditions, both jump forms, both upper-immediate ops, and a small real program that sums an array in memory.
 
-**Next up:** the 5-stage pipelined version — forwarding, hazard detection, the usual.
+**Next up:** Convert to System Verilog and incorporate support for more instructions then the 5-stage pipelined version — forwarding, hazard detection, etc.
 
 Full instruction-by-instruction progress, the actual design decisions, and a few real bugs caught (and fixed) along the way are written up in [`docs/riscv_cpu_design_doc.md`](docs/riscv_cpu_design_doc.md).
 
