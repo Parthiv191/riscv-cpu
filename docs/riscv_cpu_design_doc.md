@@ -78,10 +78,10 @@ Byte/halfword loads/stores and trap instructions (`fence`/`ecall`/`ebreak`) are 
 | `rtl/alu.v` | ✅ | ✅ |
 | `rtl/control.v` | ✅ | ✅ |
 | `rtl/regfile.v` | ✅ | ✅ |
-| `rtl/imm_gen.v` | ⬜ | ⬜ |
-| `rtl/imem.v` | ⬜ | ⬜ |
-| `rtl/dmem.v` | ⬜ | ⬜ |
-| `rtl/riscv_top.v` | ⬜ | ⬜ |
+| `rtl/imm_gen.v` | ✅ | ✅ |
+| `rtl/imem.v` | ✅ | ✅ |
+| `rtl/dmem.v` | ✅ | ✅ |
+| `rtl/riscv_top.v` | ✅ | ✅ |
 
 ---
 
@@ -163,39 +163,40 @@ module regfile (
 - Async read, sync write on `posedge clk` when `we` is high
 - `x0` forced to 0 on the *read* side with a mux, not by blocking writes to storage (tried that first, doesn't work — a `reg` array word can't be both continuously assigned and procedurally written)
 
-**Instruction Memory — `rtl/imem.v`** — ⬜ Skeleton
+**Instruction Memory — `rtl/imem.v`** — ✅ done
 
 ```verilog
 module imem (
-    input  [31:0] addr,
+    input [31:0] addr,
     output [31:0] instr
 );
 ```
 
-- Async lookup, word-aligned (`addr[15:2]` as the index), `$readmemh("program.mem", ...)`, 64KB
+- Async lookup, word-aligned, `addr[15:2]` as the index
+- Preloads with 'readmemh' — errors out until an actual `program.mem` exists
 - Convert to sync-read BRAM once the pipeline phase starts
 
-**Data Memory — `rtl/dmem.v`** — ⬜ Skeleton
+**Data Memory — `rtl/dmem.v`** — ✅ done
 
 ```verilog
 module dmem (
-    input         clk,
-    input         we,
-    input  [31:0] addr,
-    input  [31:0] wdata,
+    input clk,
+    input we,
+    input [31:0] addr,
+    input [31:0] wdata,
     output [31:0] rdata
 );
 ```
 
-- Sync write / async read, word-only (no byte-enables in v1), 64KB
+- Sync write / async read, word-only
 
-**Immediate Generator — `rtl/imm_gen.v`** — ⬜ Skeleton
+**Immediate Generator — `rtl/imm_gen.v`** — ✅ done
 
 ```verilog
 module imm_gen (
-    input  [31:0] instr,
-    input  [2:0]  imm_src,
-    output [31:0] imm
+    input [31:0] instr,
+    input [2:0] imm_src,
+    output reg [31:0] imm
 );
 ```
 
@@ -267,18 +268,20 @@ module control (
 - The "–" rows don't write a register, so `result_src` is a don't-care there
 - Watch out for: `funct7[5]` only means something real for R-type and I-type-shift (`slli`/`srli`/`srai`) — every other OP-IMM instruction has to force that bit to 0, since it's just part of the immediate for those, not a real subtract/negate flag. Learned this one the hard way (`andi` with certain immediates was silently landing on the wrong ALU op before this got fixed).
 
-**Top Module — `rtl/riscv_top.v`** — ⬜ Skeleton
+**Top Module — `rtl/riscv_top.v`** — ✅ done
 
 ```verilog
 module riscv_top (
-    input         clk,
-    input         rst,
+    input clk,
+    input rst,
     output [31:0] debug_pc,
     output [31:0] debug_instr
 );
 ```
 
-- PC register (sync reset), PC+4 adder, next-PC mux, branch target adder, all block instantiations, writeback mux
+- PC register (sync reset), PC+4 adder, next-PC mux, dedicated `pc+imm` adder shared by branch-target and `jal`, all block instantiations, writeback mux
+- `jalr`'s target reuses `alu_result` instead of a second adder — `control.v` already sets `alu_src_a=rs1, alu_src_b=imm, alu_op=ADD` for `jalr`, so the ALU's already computing `rs1+imm`. Bit 0 gets cleared in the `pc_next` mux itself.
+- Smoke-tested end to end with a hand-assembled program covering arithmetic, load/store, both branch directions, `lui`, `auipc`, `jal`, and `jalr` — all correct together, not just per-block
 
 ---
 
@@ -291,7 +294,9 @@ module riscv_top (
 | ALU | Every op, signed/unsigned edge cases, shift-amount masking, zero flag, undefined opcode |
 | Regfile | Write/read across ports, `x0` behavior, `we=0` no-op, read-during-write to the same address |
 | Control | Every opcode against the Section 4 table |
-| Imem/Dmem/Imm_gen | Not written yet |
+| Imem | Known pattern preloaded directly into the array, verify readback at several addresses |
+| Dmem | Write/read across addresses, `we=0` no-op, zero-init, read-during-write to the same address |
+| Imm_gen | One real instruction encoding per format (I/S/B/U/J) plus an undefined `imm_src`, checked against hand-computed values |
 
 **Integration** (hand-assembled programs, `.mem` files under `programs/`):
 
@@ -340,14 +345,3 @@ Not building this yet, just leaving notes.
 - Control hazards: predict-not-taken, flush IF/ID + ID/EX on a taken branch
 - Structural: none expected (Harvard memory)
 - Pipeline register contents and the forwarding/hazard-detection units are TBD — design those after the plain 5-stage datapath works with no hazard handling at all
-
----
-
-## Changelog
-
-- **6/14/26** — Initial draft created from scaffold.
-- **7/18/26** — Fixed ALU op table descriptions, added rtl/tb file scaffold.
-- **7/28/26** — Reworked doc to focus on single-cycle only, added the instruction progress tracker, moved pipeline notes to their own section, started tracking this file in git.
-- **7/30/26** — Dropped `mem_to_reg` (redundant with `result_src`), pinned down `result_src`'s bit encoding, widened the `alu_op`-passthrough exception — it's not just `addi`, it's every non-shift OP-IMM instruction.
-- **8/1/26** — `control.v` complete for all 9 opcodes / 31 instructions.
-- **8/9/26** — `regfile.v` + testbench complete. Rewrote this doc in a leaner, note-style format — fewer sections, dropped the author/status header, kept the tables and interfaces since those are the actual working reference.
