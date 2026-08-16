@@ -1,6 +1,8 @@
 `timescale 1ns/1ps
 
-module tb_top;
+module tb_top #(
+    parameter [8*32-1:0] MEMFILE = "program.mem"
+) ();
 
     // Clock
     reg clk = 0;
@@ -10,7 +12,7 @@ module tb_top;
     wire [31:0] debug_pc;
     wire [31:0] debug_instr;
 
-    riscv_top dut(
+    riscv_top #(.MEMFILE(MEMFILE)) dut(
         .clk(clk),
         .rst(rst),
         .debug_pc(debug_pc),

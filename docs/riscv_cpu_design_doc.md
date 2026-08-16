@@ -39,37 +39,39 @@ Byte/halfword loads/stores and trap instructions (`fence`/`ecall`/`ebreak`) are 
 
 | Instruction | Type | Datapath | Control | Testbench |
 |---|---|---|---|---|
-| `add`   | R | ✅ | ✅ | ⬜ |
-| `sub`   | R | ✅ | ✅ | ⬜ |
-| `and`   | R | ✅ | ✅ | ⬜ |
-| `or`    | R | ✅ | ✅ | ⬜ |
-| `xor`   | R | ✅ | ✅ | ⬜ |
-| `sll`   | R | ✅ | ✅ | ⬜ |
-| `srl`   | R | ✅ | ✅ | ⬜ |
-| `sra`   | R | ✅ | ✅ | ⬜ |
-| `slt`   | R | ✅ | ✅ | ⬜ |
-| `sltu`  | R | ✅ | ✅ | ⬜ |
-| `addi`  | I | ✅ | ✅ | ⬜ |
-| `andi`  | I | ✅ | ✅ | ⬜ |
-| `ori`   | I | ✅ | ✅ | ⬜ |
-| `xori`  | I | ✅ | ✅ | ⬜ |
-| `slli`  | I | ✅ | ✅ | ⬜ |
-| `srli`  | I | ✅ | ✅ | ⬜ |
-| `srai`  | I | ✅ | ✅ | ⬜ |
-| `slti`  | I | ✅ | ✅ | ⬜ |
-| `sltiu` | I | ✅ | ✅ | ⬜ |
-| `lw`    | Load | ✅ | ✅ | ⬜ |
-| `sw`    | Store | ✅ | ✅ | ⬜ |
-| `beq`   | Branch | ✅ | ✅ | ⬜ |
-| `bne`   | Branch | ✅ | ✅ | ⬜ |
-| `blt`   | Branch | ✅ | ✅ | ⬜ |
-| `bge`   | Branch | ✅ | ✅ | ⬜ |
-| `bltu`  | Branch | ✅ | ✅ | ⬜ |
-| `bgeu`  | Branch | ✅ | ✅ | ⬜ |
-| `jal`   | Jump | ✅ | ✅ | ⬜ |
-| `jalr`  | Jump | ✅ | ✅ | ⬜ |
-| `lui`   | Upper-imm | ✅ | ✅ | ⬜ |
-| `auipc` | Upper-imm | ✅ | ✅ | ⬜ |
+| `add`   | R | ✅ | ✅ | ✅ |
+| `sub`   | R | ✅ | ✅ | ✅ |
+| `and`   | R | ✅ | ✅ | ✅ |
+| `or`    | R | ✅ | ✅ | ✅ |
+| `xor`   | R | ✅ | ✅ | ✅ |
+| `sll`   | R | ✅ | ✅ | ✅ |
+| `srl`   | R | ✅ | ✅ | ✅ |
+| `sra`   | R | ✅ | ✅ | ✅ |
+| `slt`   | R | ✅ | ✅ | ✅ |
+| `sltu`  | R | ✅ | ✅ | ✅ |
+| `addi`  | I | ✅ | ✅ | ✅ |
+| `andi`  | I | ✅ | ✅ | ✅ |
+| `ori`   | I | ✅ | ✅ | ✅ |
+| `xori`  | I | ✅ | ✅ | ✅ |
+| `slli`  | I | ✅ | ✅ | ✅ |
+| `srli`  | I | ✅ | ✅ | ✅ |
+| `srai`  | I | ✅ | ✅ | ✅ |
+| `slti`  | I | ✅ | ✅ | ✅ |
+| `sltiu` | I | ✅ | ✅ | ✅ |
+| `lw`    | Load | ✅ | ✅ | ✅ |
+| `sw`    | Store | ✅ | ✅ | ✅ |
+| `beq`   | Branch | ✅ | ✅ | ✅ |
+| `bne`   | Branch | ✅ | ✅ | ✅ |
+| `blt`   | Branch | ✅ | ✅ | ✅ |
+| `bge`   | Branch | ✅ | ✅ | ✅ |
+| `bltu`  | Branch | ✅ | ✅ | ✅ |
+| `bgeu`  | Branch | ✅ | ✅ | ✅ |
+| `jal`   | Jump | ✅ | ✅ | ✅ |
+| `jalr`  | Jump | ✅ | ✅ | ✅ |
+| `lui`   | Upper-imm | ✅ | ✅ | ✅ |
+| `auipc` | Upper-imm | ✅ | ✅ | ✅ |
+
+Every instruction now runs through `riscv_top` and gets checked, not just decoded in isolation — `t01`-`t08` under `programs/` plus `tb_top.v` between them touch all 31.
 
 **Per-file** — is the whole block implemented, does it have its own passing testbench:
 
@@ -302,7 +304,7 @@ module riscv_top (
 
 1. `t01_addi.mem` — basic arithmetic
 2. `t02_load_store.mem` — store then load into a different register
-3. `t03_branch.mem` — loop with `beq`/`bne`
+3. `t03_branch.mem` — countdown loop with `bne`, plus all 6 branch conditions (`beq`/`bne`/`blt`/`bge`/`bltu`/`bgeu`)
 4. `t04_jump.mem` — `jal`, verify return address
 5. `t05_sum_array.mem` — sum 10 numbers in memory
 6. `t06_all_r_type.mem` / `t07_all_i_type.mem` — exercise every R/I-type

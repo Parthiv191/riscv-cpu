@@ -3,7 +3,9 @@
 module dmem (
     input clk,
     input we,
-    input [31:0] addr,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input [31:0] addr, // only addr[15:2] is used -- 64KB region, word-only access
+    /* verilator lint_on UNUSEDSIGNAL */
     input [31:0] wdata,
     output [31:0] rdata
 );

@@ -1,0 +1,13 @@
+00C00093  // addi x1,x0,12
+00500113  // addi x2,x0,5
+002081B3  // add x3,x1,x2
+40208233  // sub x4,x1,x2
+0020F2B3  // and x5,x1,x2
+0020E333  // or x6,x1,x2
+0020C3B3  // xor x7,x1,x2
+00209433  // sll x8,x1,x2
+0020D4B3  // srl x9,x1,x2
+4020D533  // sra x10,x1,x2
+001125B3  // slt x11,x2,x1
+00113633  // sltu x12,x2,x1
+0000006F  // jal x0,0 (halt)

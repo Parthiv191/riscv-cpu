@@ -1,7 +1,9 @@
 // Immediate generator for RISC-V core
 
 module imm_gen (
-    input [31:0] instr,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input [31:0] instr, // opcode bits [6:0] aren't needed here, control.v owns those
+    /* verilator lint_on UNUSEDSIGNAL */
     input [2:0] imm_src,
     output reg [31:0] imm
 );

@@ -1,7 +1,9 @@
 // Top module for RISC-V core -- instantiates all blocks, holds the PC
 // register, and wires up the muxes control.v doesn't own directly
 
-module riscv_top (
+module riscv_top #(
+    parameter [8*32-1:0] MEMFILE = "program.mem"
+) (
     input clk,
     input rst,
     output [31:0] debug_pc,
@@ -93,7 +95,7 @@ module riscv_top (
         endcase
     end
 
-    imem imem_inst (
+    imem #(.MEMFILE(MEMFILE)) imem_inst (
         .addr(pc),
         .instr(instr)
     );

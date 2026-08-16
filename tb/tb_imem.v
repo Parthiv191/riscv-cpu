@@ -1,11 +1,13 @@
 `timescale 1ns/1ps
 
-module tb_imem;
+module tb_imem #(
+    parameter [8*32-1:0] MEMFILE = "program.mem"
+) ();
 
     reg [31:0] addr;
     wire [31:0] instr;
 
-    imem dut(
+    imem #(.MEMFILE(MEMFILE)) dut(
         .addr(addr),
         .instr(instr)
     );

@@ -1,0 +1,24 @@
+00300093  // addi x1,x0,3
+00000113  // addi x2,x0,0
+00110113  // LOOP: addi x2,x2,1
+FFF08093  // addi x1,x1,-1
+FE009CE3  // bne x1,x0,LOOP
+00008463  // beq x1,x0,+skip (taken)
+3E700293  // addi x5,x0,999 (skipped)
+00500313  // addi x6,x0,5
+00500393  // addi x7,x0,5
+00735463  // bge x6,x7,+skip (taken)
+3E700413  // addi x8,x0,999 (skipped)
+00300493  // addi x9,x0,3
+00700513  // addi x10,x0,7
+00A4E463  // bltu x9,x10,+skip (taken)
+3E700593  // addi x11,x0,999 (skipped)
+00700613  // addi x12,x0,7
+00300693  // addi x13,x0,3
+00D67463  // bgeu x12,x13,+skip (taken)
+3E700713  // addi x14,x0,999 (skipped)
+00300793  // addi x15,x0,3
+00700813  // addi x16,x0,7
+0107C463  // blt x15,x16,+skip (taken)
+3E700893  // addi x17,x0,999 (skipped)
+0000006F  // jal x0,0 (halt)

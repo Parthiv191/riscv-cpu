@@ -2,7 +2,9 @@
 module control (
     input  [6:0] opcode, // instr[6:0]
     input  [2:0] funct3, // instr[14:12]
-    input  [6:0] funct7, // instr[31:25]
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  [6:0] funct7, // only funct7[5] is used -- the rest doesn't select anything
+    /* verilator lint_on UNUSEDSIGNAL */
     input        alu_zero, // for branch resolution
     output  reg  reg_write,
     output  reg  mem_write,
@@ -127,6 +129,10 @@ module control (
                 imm_src = 3'b000;
                 pc_src = 2'b11;
             end
+
+        // Anything else: fall through on the safe defaults set above
+        default: begin
+        end
         endcase
     end
 
