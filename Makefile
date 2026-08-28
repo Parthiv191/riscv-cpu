@@ -1,8 +1,5 @@
 # RISC-V CPU Makefile
 #
-# Multi-module project: rtl/ holds design sources, tb/ holds one
-# testbench per block (plus tb_top.v for full integration).
-#
 # Usage: make sim TB=alu
 #        make sim TB=top PROGRAM=programs/t01_addi.mem
 
@@ -30,7 +27,7 @@ WAVE  = waves.vcd
 .PHONY: sim wave lint clean help $(SIM) $(WAVE)
 
 help:
-	@echo "Targets:"
+	@echo "Help:"
 	@echo "  make lint                           - run Verilator lint on rtl/"
 	@echo "  make sim TB=<block>                 - compile and run testbench for <block> (default: alu)"
 	@echo "  make sim TB=<block> PROGRAM=<file>  - for TB=imem/top, load <file> into imem instead of program.mem"
