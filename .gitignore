@@ -17,3 +17,9 @@
 docs/Immediate Coding Diagram.png
 docs/Ref Sheet.pdf
 docs/riscv-unprivileged.pdf
+
+# Personal study material, not project documentation
+docs/interview_prep.md
+
+# Verilator build output
+obj_dir/

@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 // 32-bit ALU for RISC-V core
 
 // ----- Operations -----
