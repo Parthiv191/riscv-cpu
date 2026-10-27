@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // Immediate generator for RISC-V core
 
 module imm_gen (

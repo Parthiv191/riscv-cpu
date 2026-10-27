@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 // Top module for RISC-V core -- instantiates all blocks, holds the PC
 // register, and wires up the muxes control.v doesn't own directly
 

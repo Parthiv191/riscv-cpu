@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 // Instruction memory for RISC-V core
 
 module imem #( parameter [8*32-1:0] MEMFILE = "program.mem") (

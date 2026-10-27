@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 // Data memory for RISC-V core
 
 module dmem (

@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 // Control unit for RISC-V core
 module control (
     input  [6:0] opcode, // instr[6:0]

@@ -23,3 +23,7 @@ docs/interview_prep.md
 
 # Verilator build output
 obj_dir/
+
+# Local assistant config
+CLAUDE.md
+.claude/

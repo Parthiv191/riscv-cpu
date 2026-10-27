@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 // 32 x 32-bit register file for RISC-V core, reg x0 must always be 0
 
 module regfile (
