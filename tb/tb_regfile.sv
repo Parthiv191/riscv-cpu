@@ -3,7 +3,8 @@
 module tb_regfile;
 
     // Clock
-    logic clk = 0;
+    logic clk;
+    initial clk = 1'b0;
     always #5 clk = ~clk;
 
     logic we;
